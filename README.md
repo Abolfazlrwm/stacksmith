@@ -107,6 +107,8 @@ release closes every item from the v0.2 roadmap. What remains:
 - [ADR-0020: cosign image signing](docs/adr/0020-cosign-and-terraform-and-chaos.md)
 - [ADR-0021: Terraform provisioning](docs/adr/0020-cosign-and-terraform-and-chaos.md)
 - [ADR-0022: chaos engineering drill](docs/adr/0020-cosign-and-terraform-and-chaos.md)
+- [ADR-0023: cosign verify gate](docs/adr/0023-cosign-verify-and-disaster-recovery.md)
+- [ADR-0024: disaster recovery drill](docs/adr/0023-cosign-verify-and-disaster-recovery.md)
 
 ## Runbooks
 

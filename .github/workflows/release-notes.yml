@@ -1,0 +1,65 @@
+---
+name: release-notes
+
+# Generates automated release notes from conventional commits when a
+# tag is pushed. Uses GitHub's native release-notes generator with a
+# custom configuration that maps commit prefixes to sections.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    name: generate and attach release notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          # Find the previous tag.
+          PREV=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$PREV" ]; then
+            RANGE="HEAD"
+          else
+            RANGE="${PREV}..HEAD"
+          fi
+          echo "Generating notes for $RANGE"
+
+          # Generate sections from conventional commits.
+          {
+            echo "## What changed"
+            echo ""
+            echo "### feat — new capabilities"
+            git log "$RANGE" --oneline --no-decorate --grep="^feat" || true
+            echo ""
+            echo "### fix — bug fixes"
+            git log "$RANGE" --oneline --no-decorate --grep="^fix" || true
+            echo ""
+            echo "### ci — CI and workflows"
+            git log "$RANGE" --oneline --no-decorate --grep="^ci" || true
+            echo ""
+            echo "### docs — documentation"
+            git log "$RANGE" --oneline --no-decorate --grep="^docs" || true
+            echo ""
+            echo "### chore — housekeeping"
+            git log "$RANGE" --oneline --no-decorate --grep="^chore" || true
+          } > release-notes.md
+
+          cat release-notes.md
+          echo "path=release-notes.md" >> "$GITHUB_OUTPUT"
+
+      - name: Attach notes to the release
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          gh release edit "$TAG" --notes-file release-notes.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
