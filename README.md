@@ -112,6 +112,16 @@ release closes every item from the v0.2 roadmap. What remains:
 - [ADR-0025: deploy-time cosign verify](docs/adr/0025-deploy-verify-automation-cost.md)
 - [ADR-0026: release drafter and Dependabot auto-merge](docs/adr/0025-deploy-verify-automation-cost.md)
 - [ADR-0027: cost monitoring dashboard](docs/adr/0025-deploy-verify-automation-cost.md)
+- [ADR-0028: multi-provider Terraform](docs/adr/0028-multi-provider-and-architecture.md)
+- [ADR-0029: architecture docs and OpenAPI](docs/adr/0028-multi-provider-and-architecture.md)
+
+## Architecture
+
+See [docs/architecture.md](docs/architecture.md) for the full system architecture with
+five Mermaid diagrams (topology, CI, deploy, backup, firewall).
+
+See [docs/api/health-openapi.json](docs/api/health-openapi.json) for the
+OpenAPI 3.0 spec of the health endpoints.
 
 ## Runbooks
 

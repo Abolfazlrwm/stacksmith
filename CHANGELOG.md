@@ -6,6 +6,20 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-12-11
+
+Multi-provider infrastructure, architecture documentation, API specification.
+
+### Added
+
+- **Phase 12.1** — Multi-provider Terraform. Hetzner Cloud + DigitalOcean
+  in one module, selected by `provider` variable. ADR-0028.
+- **Phase 12.2** — Architecture documentation. Five Mermaid diagrams
+  (topology, CI pipeline, deploy sequence, backup/DR flow, firewall) plus
+  service and observability inventory tables.
+- **Phase 12.3** — OpenAPI 3.0 spec for the health endpoints
+  (`/health/live/`, `/health/ready/`) with response schemas. ADR-0029.
+
 ## [0.7.0] — 2026-12-08
 
 Deploy-time security, developer automation, and cost visibility.
