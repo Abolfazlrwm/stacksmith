@@ -6,6 +6,22 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-12-08
+
+Deploy-time security, developer automation, and cost visibility.
+
+### Added
+
+- **Phase 11.1** — Deploy-time cosign verify. `deploy.sh` verifies the
+  image signature before switching the upstream. Hard abort on failure.
+  ADR-0025.
+- **Phase 11.2** — Release drafter. Maintains a draft GitHub Release from
+  PR titles and labels. Dependabot auto-merge for patch and minor bumps
+  after CI passes; major bumps get `needs-review`. ADR-0026.
+- **Phase 11.3** — Cost monitoring dashboard. `cost-metric.sh` writes a
+  textfile metric; Grafana panel shows monthly cost, CPU/memory/disk, and
+  per-service cost breakdown. ADR-0027.
+
 ## [0.6.0] — 2026-12-04
 
 Operational maturity: the kit now proves it can survive a total VPS loss

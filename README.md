@@ -109,6 +109,9 @@ release closes every item from the v0.2 roadmap. What remains:
 - [ADR-0022: chaos engineering drill](docs/adr/0020-cosign-and-terraform-and-chaos.md)
 - [ADR-0023: cosign verify gate](docs/adr/0023-cosign-verify-and-disaster-recovery.md)
 - [ADR-0024: disaster recovery drill](docs/adr/0023-cosign-verify-and-disaster-recovery.md)
+- [ADR-0025: deploy-time cosign verify](docs/adr/0025-deploy-verify-automation-cost.md)
+- [ADR-0026: release drafter and Dependabot auto-merge](docs/adr/0025-deploy-verify-automation-cost.md)
+- [ADR-0027: cost monitoring dashboard](docs/adr/0025-deploy-verify-automation-cost.md)
 
 ## Runbooks
 
