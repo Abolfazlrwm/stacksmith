@@ -6,7 +6,31 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [1.0.0] — 2026-12-15
+## [1.0.1] — 2026-12-16
+
+Commit convention enforcement (ADR-0032).
+
+### Added
+
+- **commitlint config** (`commitlint/commitlint.config.cjs`) — extends
+  Conventional Commits 1.0.0. header ≤ 72 chars, subject imperative with
+  no trailing period, body wrap at 100 chars (warning).
+- **Local git hooks** (`.githooks/commit-msg`, `.githooks/pre-push`) —
+  runs commitlint in the editor; refuses to push leftover `fixup!` or
+  `squash!` commits.
+- **CI gate** (`.github/workflows/commitlint.yml`) — two jobs: PR title
+  check via `amannn/action-semantic-pull-request`, and a per-commit
+  commitlint run over the PR's added commits.
+- **ADR-0032** — records the three-layer enforcement, allowed types
+  table, breaking-change syntax, and the rollout note that the 10
+  leftover `fixup!` commits on `main` are left in place.
+
+### Changed
+
+- **CONTRIBUTING.md** — full commit-format section + hook install
+  instructions.
+
+ — 2026-12-15
 
 **Stable release.** The operational surface is declared stable (ADR-0031).
 
