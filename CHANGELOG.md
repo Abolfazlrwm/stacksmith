@@ -6,6 +6,41 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.4] — 2026-12-22
+
+Presentation-readiness pass: fixes the factual errors in the docs
+audit and adds product framing so the repo reads as a product, not
+just a deployment kit.
+
+### Fixed
+
+- **README version stale** — headline said `v1.0.0` while `VERSION`
+  was `1.1.3`. Updated to `v1.1.3`.
+- **README ADR list broken** — claimed 31 ADRs (actual 29); ADRs
+  0032–0035 (incl. the SLO/SLI ones) were unlisted; ADR-0021/22/24/26/
+  27/29 were listed with links to wrong files. Rebuilt the list through
+  ADR-0035 with correct links and a note that the gaps are merged
+  drafts.
+- **CI workflow count mismatch** — README said 23, `architecture.md`
+  said 24, actual 27. Reconciled to 27.
+- **`docs/known-limitations.md`** — stale `v0.7 roadmap` reference
+  replaced with the ADR-0025 evaluation reference.
+- **`docs/getting-started.md`** — `five dashboards` (six were listed).
+  Fixed off-by-one.
+
+### Added
+
+- **README now describes the product.** New `What this is` section
+  explains docubot is a self-hosted document-chat platform (RAG over
+  pgvector, no cloud lock-in), who it is for, and the operational
+  features StackSmith ships.
+- **`Product features` and `Operational features` sections** in the
+  README — product vs ops, side by side.
+- **SLOs surfaced in the README maturity table** — listed as shipped
+  with the ADR-0033/0035 references.
+- **latency-SLI and SLO-metrics drills** added to the proven-in-CI
+  list and to the architecture CI Mermaid diagram.
+
 ## [1.1.3] — 2026-12-22
 
 Restructures the `latency-sli-drill` CI workflow so it asserts what is
