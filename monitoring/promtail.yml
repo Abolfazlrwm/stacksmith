@@ -1,5 +1,6 @@
 ---
-# promtail config — scrape docker container logs and ship to Loki.
+# promtail config — scrape docker container logs and ship to Loki, and
+# derive Prometheus metrics from the nginx access log (ADR-0035).
 server:
   http_listen_port: 9080
   grpc_listen_port: 0
@@ -11,6 +12,85 @@ clients:
   - url: http://loki:3100/loki/api/v1/push
 
 scrape_configs:
+  # --- nginx access log → Prometheus metrics (ADR-0035) ---
+  # nginx emits JSON (the stacksmith_json log_format in
+  # nginx/default.conf). The metrics stage below turns each access-log
+  # line into two Prometheus metrics, exposed on promtail's :9080/metrics
+  # and scraped by prometheus:
+  #   - nginx_log_request_duration_seconds (Histogram, latency SLI)
+  #   - nginx_log_requests_total (Counter, with status label)
+  # This is the SLI source ADR-0034 said OSS stub_status could not give
+  # us; the latency P99 SLO is re-introduced in this phase.
+  - job_name: nginx_access
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: label
+            values: ["com.docker.compose.project=stacksmith"]
+    relabel_configs:
+      # Keep only the nginx container (by the service label set by
+      # docker compose). Using 'keep' rather than a docker_sd filter
+      # because the project-wide filter is known to work (the 'docker'
+      # scrape config below uses it and successfully tails Django logs).
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        regex: 'nginx'
+        action: keep
+      - source_labels: ['__meta_docker_container_name']
+        target_label: container
+        regex: '/(.*)'
+        replacement: '${1}'
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: service
+    pipeline_stages:
+      # docker_sd reads the Docker JSON log wrapper:
+      #   {"log":"<actual nginx log>\n","stream":"stdout","time":"..."}
+      # First json stage extracts the inner "log" field (a JSON string)
+      # into the extracted map. The second json stage, with source: log,
+      # re-parses that inner string as JSON to pull status + request_time.
+      - json:
+          expressions:
+            log: log
+      # Now parse the inner nginx access-log JSON. source: log tells the
+      # json stage to parse the value extracted above, not the raw line.
+      # status is a number, request_time is a float seconds value; both
+      # are emitted unquoted by nginx (escape=json preserves the type).
+      - json:
+          source: log
+          expressions:
+            status: status
+            request_time: request_time
+            method: method
+            uri: uri
+      # Promote status to a label so the Counter splits by status code.
+      # The uri label is intentionally NOT promoted — high cardinality.
+      - labels:
+          status:
+          method:
+      # Derive Prometheus metrics. The metrics stage is a MAP keyed by
+      # metric name (NOT a list). type is lowercase ("counter"/"gauge"/
+      # "histogram"). prefix: "" suppresses the default "promtail_custom_"
+      # prefix so the metric name we use here is the name prometheus
+      # sees. config.action: add feeds the extracted float into the
+      # histogram buckets; inc = +1 per line for the counter.
+      - metrics:
+          nginx_log_request_duration_seconds:
+            type: histogram
+            description: "nginx request duration in seconds (from access log)"
+            source: request_time
+            prefix: ""
+            config:
+              buckets: [0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+              action: add
+          nginx_log_requests_total:
+            type: counter
+            description: "nginx requests by status (from access log)"
+            source: status
+            prefix: ""
+            config:
+              action: inc
+
+  # --- everything else (Django app, worker, etc.) → Loki only ---
   - job_name: docker
     docker_sd_configs:
       - host: unix:///var/run/docker.sock
