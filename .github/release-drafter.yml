@@ -1,0 +1,40 @@
+name-template: "v$RESOLVED_VERSION"
+tag-template: "v$RESOLVED_VERSION"
+template: |
+  ## What changed
+
+  $CHANGES
+
+  ## Proven in CI
+
+  $CI_SUMMARY
+
+  ---
+  **Full changelog**: https://github.com/Abolfazlrwm/stacksmith/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
+
+categories:
+  - title: "New features"
+    labels: ["feat", "enhancement"]
+  - title: "Bug fixes"
+    labels: ["fix", "bug"]
+  - title: "CI & workflows"
+    labels: ["ci"]
+  - title: "Documentation"
+    labels: ["docs"]
+  - title: "Housekeeping"
+    labels: ["chore"]
+  - title: "Security"
+    labels: ["security"]
+
+label-template: "$TITLE"
+change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
+change-title-escapes: '\<*_&'
+exclude-labels: ["skip-changelog", "release"]
+version-resolver:
+  major:
+    labels: ["major"]
+  minor:
+    labels: ["minor", "feat"]
+  patch:
+    labels: ["patch", "fix", "ci", "docs", "chore"]
+  default: patch
