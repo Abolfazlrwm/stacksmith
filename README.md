@@ -3,48 +3,51 @@
 [![lint](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/lint.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/lint.yml)
 [![smoke](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/smoke.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/smoke.yml)
 [![restore drill](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/restore-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/restore-drill.yml)
-[![encryption drill](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/encryption-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/encryption-drill.yml)
-[![logs drill](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/logs-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/logs-drill.yml)
+[![disaster recovery](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/disaster-recovery-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/disaster-recovery-drill.yml)
+[![security](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/codeql.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/codeql.yml)
 [![Release](https://img.shields.io/github/v/release/Abolfazlrwm/stacksmith?sort=semver)](https://github.com/Abolfazlrwm/stacksmith/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **deploys this ← [docubot](https://github.com/Abolfazlrwm/docubot)**
 
-Production-grade deployment kit for the docubot stack: docker compose,
-zero-downtime deploys, backups, observability. One VPS, no Kubernetes, no
-cloud lock-in — everything here runs on a single machine you can ssh into.
+Production-grade deployment kit for the docubot stack. One VPS, no
+Kubernetes, no cloud lock-in — everything runs on a single machine you
+can ssh into.
 
-> A claim in this README must be proven by a CI job; everything untested is
-> written down as a [known limitation](docs/known-limitations.md) instead.
+> **v1.0.0 — stable.** The operational surface (scripts, compose, CI)
+> is stable. v1.x patches add features without breaking changes.
 
-## Stack
+## Stability
 
-```mermaid
-flowchart LR
-    client["Client"] --> nginx["nginx<br/>reverse proxy · gzip · security headers"]
-    nginx --> app-blue["app-blue · gunicorn<br/>Django 5.2"]
-    nginx -.-> app-green["app-green · gunicorn<br/>(standby)"]
-    app-blue --> pg[("Postgres 17<br/>pgvector")]
-    app-blue --> redis[("Redis 7<br/>broker + cache")]
-    app-blue --> worker["celery worker"]
-    app-blue --> beat["celery beat"]
-    worker --> pg
-    worker --> redis
-    beat --> redis
+v1.0.0 declares the operational surface stable (ADR-0031):
 
-    subgraph obs["observability"]
-        prom["prometheus"]
-        graf["grafana"]
-        node_exp["node-exporter"]
-        cadvisor["cAdvisor"]
-        blackbox["blackbox"]
-        prom --> node_exp
-        prom --> cadvisor
-        prom --> blackbox
-        prom --> graf
-        blackbox --> nginx
-    end
-```
+| Surface | Commitment |
+|---|---|
+| Scripts (`deploy.sh`, `backup-db.sh`, etc.) | CLI is stable; no breaking changes in v1.x |
+| Compose (`docker-compose.prod.yml`) | Service names and volumes are stable |
+| CI workflows (23) | No workflow removed without a replacement |
+| ADRs (31) | No ADR reversed without a superseding ADR |
+
+## Maturity model
+
+| Capability | Status | Proof |
+|---|---|---|
+| Zero-downtime deploy | ✅ shipped | deploy + rollback drill, canary failure drill |
+| Encrypted backups | ✅ shipped | encryption drill, restore drill |
+| Disaster recovery | ✅ shipped | total VPS loss drill (destroy → restore → verify) |
+| Observability | ✅ shipped | metrics, logs, traces, alerts (5 CI drills) |
+| Security scanning | ✅ shipped | CodeQL, Trivy, dependency review, SBOM |
+| Supply chain | ✅ shipped | multi-arch GHCR, cosign sign + verify, build provenance |
+| TLS automation | ✅ shipped | certbot renewal loop |
+| Secret rotation | ✅ shipped | rotation drill (key + password, zero downtime) |
+| Load testing | ✅ shipped | k6 (50 VUs, p95 < 500ms threshold) |
+| Chaos engineering | ✅ shipped | kill worker + stop nginx → verify recovery |
+| Infrastructure as code | ✅ shipped | Terraform (Hetzner + DigitalOcean) |
+| Maintenance mode | ✅ shipped | nginx 503 + health probes stay 200 |
+| Capacity planning | ✅ shipped | disk exhaustion prediction dashboard |
+| Audit trail | ✅ shipped | JSON-lines log for deploy/rollback/restore/backup |
+| Multi-host HA | 📋 evaluated | ADR-0015 (not shipped; reopens when traffic requires) |
+| Business load tests | 📋 planned | only /health/live/ is tested |
 
 ## Quick start
 
@@ -54,36 +57,45 @@ cd stacksmith
 cp .env.example .env          # fill in the required values
 make doctor                   # verify the host is ready
 make up                       # bring the stack up
+bash scripts/stacksmith-health.sh  # one-command health check
 make backup                   # take a database backup
 ```
 
 ## What works today (proven in CI)
 
-- **Lint** — `yamllint`, `shellcheck`, `docker compose config` (including TLS overlay) on every push.
-- **Smoke (stub)** — nginx + static health page.
-- **Smoke (prod)** — full stack up (app, worker, beat, postgres, redis, nginx),
-  `/health/live/` and `/health/ready/` probed through nginx.
-- **Deploy + rollback drill** — blue → green → blue with canary probes at
-  every step. Zero-downtime proven.
-- **Canary failure → auto-rollback** — break app-green, verify deploy.sh
-  catches it and rolls back automatically.
-- **Restore drill** — seed a row, back up, drop the row, restore, verify the
-  row count. The backup metric (`backup.prom`) is verified too.
-- **Encryption drill** — encrypt a backup with `age`, drop a row, restore
-  from the encrypted file, verify the row is back.
-- **Logs drill** — bring up Loki + promtail, generate a log line, query Loki
-  and verify the log was ingested.
+- **Lint** — yamllint, shellcheck, docker compose config
+- **Smoke** — stub + prod stack, health probes through nginx
+- **Deploy drill** — blue → green → blue with canary probes
+- **Canary failure → auto-rollback** — break green, verify rollback
+- **Restore drill** — backup → wipe → restore → verify row counts + metric
+- **Encryption drill** — encrypt → restore from .age → verify
+- **Integrity drill** — row count diff against throwaway database
+- **Rotation drill** — rotate key + password, verify still serving
+- **Logs drill** — Loki ingest → query
+- **Alerts drill** — Alertmanager → webhook delivery
+- **Tracing drill** — Tempo ingest → query
+- **Chaos drill** — kill worker + stop nginx → verify recovery
+- **DR drill** — total VPS loss → encrypted restore → verify data + app
+- **Load test** — k6 (50 VUs, p95 < 500ms)
+- **CodeQL** — semantic code analysis
+- **Trivy** — container CVE scan
+- **SBOM** — syft + grype
+- **Registry build** — multi-arch (amd64 + arm64) GHCR push
+- **cosign sign + verify** — keyless signing, SBOM attestation
 
 ## Known limitations
 
-See [docs/known-limitations.md](docs/known-limitations.md). The v0.2.0
-release closes every item from the v0.2 roadmap. What remains:
+See [docs/known-limitations.md](docs/known-limitations.md).
 
-- Single host (no HA) — deliberate (ADR-0001).
-- No automated secret rotation — manual (ADR-0005).
-- Tested in CI against a fresh database, not a large production one.
+## Architecture
 
-## Architecture decisions
+See [docs/architecture.md](docs/architecture.md) for 5 Mermaid diagrams
+(topology, CI pipeline, deploy sequence, backup/DR flow, firewall).
+
+See [docs/api/health-openapi.json](docs/api/health-openapi.json) for the
+OpenAPI 3.0 spec.
+
+## Architecture decisions (31 ADRs)
 
 - [ADR-0001: compose as the deployment unit](docs/adr/0001-use-compose-as-the-deployment-unit.md)
 - [ADR-0002: blue-green with compose](docs/adr/0002-blue-green-with-compose.md)
@@ -114,15 +126,8 @@ release closes every item from the v0.2 roadmap. What remains:
 - [ADR-0027: cost monitoring dashboard](docs/adr/0025-deploy-verify-automation-cost.md)
 - [ADR-0028: multi-provider Terraform](docs/adr/0028-multi-provider-and-architecture.md)
 - [ADR-0029: architecture docs and OpenAPI](docs/adr/0028-multi-provider-and-architecture.md)
-- [ADR-0030: maintenance, recording rules, health CLI, capacity, audit](docs/adr/0030-operational-excellence.md)
-
-## Architecture
-
-See [docs/architecture.md](docs/architecture.md) for the full system architecture with
-five Mermaid diagrams (topology, CI, deploy, backup, firewall).
-
-See [docs/api/health-openapi.json](docs/api/health-openapi.json) for the
-OpenAPI 3.0 spec of the health endpoints.
+- [ADR-0030: operational excellence](docs/adr/0030-operational-excellence.md)
+- [ADR-0031: v1.0.0 stability declaration](docs/adr/0031-v1.0.0-stability-declaration.md)
 
 ## Runbooks
 
@@ -137,18 +142,22 @@ OpenAPI 3.0 spec of the health endpoints.
 .
 ├── docker-compose.prod.yml       # the deployment unit
 ├── docker-compose.monitoring.yml # observability overlay
+├── docker-compose.tls.yml        # TLS overlay (certbot)
 ├── Makefile                      # one entry point for ops
-├── scripts/                      # deploy, rollback, backup, restore, release, env checks
-├── app/                          # minimal Django app (health endpoints, migrate entrypoint)
-├── nginx/                        # reverse proxy config + upstreams
+├── scripts/                      # 18 operational scripts
+├── app/                          # minimal Django app (health endpoints)
+├── nginx/                        # reverse proxy + upstreams + TLS
 ├── postgres/                     # tuned postgresql.conf
-├── monitoring/                   # prometheus, alert rules, blackbox config
-├── grafana/                      # provisioned dashboards
+├── monitoring/                   # prometheus, alert + recording rules, blackbox
+├── grafana/                      # 5 provisioned dashboards
+├── terraform/                    # multi-provider VPS provisioning
 ├── deploy/systemd/               # backup timer + service units
 └── docs/
-    ├── adr/                      # 5 ADRs
+    ├── adr/                      # 31 ADRs
     ├── runbooks/                 # 4 runbooks
-    └── known-limitations.md      # what does not work yet
+    ├── architecture.md           # 5 Mermaid diagrams
+    ├── api/                      # OpenAPI 3.0 spec
+    └── known-limitations.md
 ```
 
 ## License
