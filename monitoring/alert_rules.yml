@@ -115,10 +115,43 @@ groups:
             rest of the month — deploys should be more careful. Check
             the SLO dashboard for the burn trend.
 
-      # NOTE: the latency P99 alert (SLOLatencyP99Breach) was removed
-      # in ADR-0034. OSS nginx does not expose a latency histogram
-      # (stub_status has no timing data, nginx-prometheus-exporter
-      # produces no histograms), so the alert could never fire on real
-      # data. Re-add it when a log-parsing pipeline (promtail → Loki
-      # → a recording rule that derives p99 from nginx access-log
-      # $request_time) lands.
+      # --- latency SLO (re-introduced by ADR-0035) ---
+      # The promtail metrics pipeline derives nginx_log_request_duration_seconds
+      # (a Histogram) from nginx's $request_time in the JSON access log.
+      # This is the source ADR-0034 said OSS stub_status could not
+      # provide. P99 must stay under 500ms for 5m to avoid a page.
+      - alert: SLOLatencyP99Breach
+        expr: nginx:p99_latency_ms_5m > 500
+        for: 5m
+        labels:
+          severity: warning
+          slo: latency
+        annotations:
+          summary: "SLO latency P99 above 500ms"
+          description: >-
+            P99 request latency through nginx exceeded 500ms for the
+            last 5 minutes. User-visible slowness. Check the SLO
+            dashboard's latency band panel and the app-blue container
+            for slow queries or a stuck worker.
+
+      # --- 5xx quality SLO (re-introduced by ADR-0035) ---
+      # The promtail metrics pipeline derives nginx_log_requests_total
+      # with a status label, so we can finally compute the 5xx ratio
+      # that ADR-0033 originally wanted. This is a quality signal layered
+      # on top of the outage SLO above: a 30% 5xx rate with the health
+      # endpoint up would not trip SLOAvailabilityDown, but it trips
+      # this. The threshold (2% for 2m) is the fast-burn line.
+      - alert: SLOHigh5xxRate
+        expr: nginx:error_rate_5xx_5m > 0.02
+        for: 2m
+        labels:
+          severity: critical
+          slo: availability
+        annotations:
+          summary: "SLO high 5xx rate — quality burn"
+          description: >-
+            The 5xx ratio through nginx exceeded 2% for 2 minutes. This
+            burns the 30-day error budget 14x faster than the SLO
+            allows. The health probe may still be up (so
+            SLOAvailabilityDown has not fired), but users are seeing
+            errors. Page and investigate app-blue.

@@ -36,6 +36,47 @@ groups:
       - record: nginx:request_rate_5m
         expr: sum(rate(nginx_http_requests_total[5m]))
 
+      # --- latency + per-status SLI from promtail (ADR-0035) ---
+      # promtail's metrics pipeline derives these from the nginx JSON
+      # access log ($request_time and $status). This is the source that
+      # ADR-0034 said OSS stub_status could not provide, unblocking the
+      # latency P99 SLO and a real 5xx error ratio.
+
+      # P99 latency through nginx over 5m, in milliseconds.
+      - record: nginx:p99_latency_ms_5m
+        expr: >-
+          histogram_quantile(0.99,
+            sum(rate(nginx_log_request_duration_seconds_bucket[5m])) by (le)
+          ) * 1000
+
+      # P50 / P95 for the dashboard bands.
+      - record: nginx:p50_latency_ms_5m
+        expr: >-
+          histogram_quantile(0.50,
+            sum(rate(nginx_log_request_duration_seconds_bucket[5m])) by (le)
+          ) * 1000
+      - record: nginx:p95_latency_ms_5m
+        expr: >-
+          histogram_quantile(0.95,
+            sum(rate(nginx_log_request_duration_seconds_bucket[5m])) by (le)
+          ) * 1000
+
+      # 5xx error ratio over 5m — the per-status SLI that ADR-0034
+      # deferred. nginx_log_requests_total is labeled by status, so we
+      # can finally compute the real error rate, not just "is it down".
+      - record: nginx:error_rate_5xx_5m
+        expr: >-
+          sum(rate(nginx_log_requests_total{status=~"5.."}[5m]))
+          / clamp_min(sum(rate(nginx_log_requests_total[5m])), 1)
+
+      # 30-day 5xx ratio — the error-budget numerator (ADR-0033's
+      # original intent, now computable). Used by the availability SLO
+      # as a quality signal layered on top of the outage SLI.
+      - record: nginx:error_rate_5xx_30d
+        expr: >-
+          sum(rate(nginx_log_requests_total{status=~"5.."}[30d]))
+          / clamp_min(sum(rate(nginx_log_requests_total[30d])), 1)
+
       # Availability SLI: blackbox probe success to /health/live/.
       # We use probe_success (1 = up, 0 = down) averaged over 5m. This
       # catches outages, not partial 5xx errors — see ADR-0034 for why
