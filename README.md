@@ -4,29 +4,73 @@
 [![smoke](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/smoke.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/smoke.yml)
 [![restore drill](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/restore-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/restore-drill.yml)
 [![disaster recovery](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/disaster-recovery-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/disaster-recovery-drill.yml)
+[![latency SLI](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/latency-sli-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/latency-sli-drill.yml)
 [![security](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/codeql.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/codeql.yml)
 [![Release](https://img.shields.io/github/v/release/Abolfazlrwm/stacksmith?sort=semver)](https://github.com/Abolfazlrwm/stacksmith/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **deploys this ← [docubot](https://github.com/Abolfazlrwm/docubot)**
 
-Production-grade deployment kit for the docubot stack. One VPS, no
-Kubernetes, no cloud lock-in — everything runs on a single machine you
-can ssh into.
+## What this is
 
-> **v1.0.0 — stable.** The operational surface (scripts, compose, CI)
+**docubot** is a self-hosted document-chat platform: upload PDFs,
+Markdown, and plain-text documents, then ask questions of them in a
+chat interface. Answers are grounded in your own documents via
+retrieval-augmented generation (RAG) over a `pgvector` index — no data
+leaves your machine, and there is no per-seat cloud lock-in. It is
+for small teams and individuals who want the convenience of a chat
+assistant over their private corpus without handing their files to a
+third party.
+
+**StackSmith** is the production deployment kit for docubot: a single
+VPS, no Kubernetes, no cloud lock-in — everything runs on one machine
+you can ssh into. It packages the app with nginx, Postgres, Redis, a
+full observability stack (Prometheus, Loki, Tempo, Alertmanager,
+Grafana), encrypted off-host backups, blue-green deploys, signed
+images, and the runbooks + SLOs that make it operable.
+
+> **v1.1.3 — stable.** The operational surface (scripts, compose, CI)
 > is stable. v1.x patches add features without breaking changes.
+
+## Product features (docubot)
+
+- **Document chat** — ask questions of your uploaded documents; answers
+  cite the source passages.
+- **RAG over pgvector** — semantic search of your corpus using
+  Postgres-native vector storage; no separate vector DB to run.
+- **Multi-format ingestion** — PDF, Markdown, plain text.
+- **Self-hosted** — your documents never leave your machine. The LLM
+  call is the only outbound request, and you choose the provider.
+- **Multi-user** — per-user document collections and chat history.
+- **Open source** — MIT licensed, no proprietary runtime.
+
+## Operational features (StackSmith)
+
+- **Zero-downtime deploy** — blue/green via docker-compose, with
+  canary probes and auto-rollback (proven in CI).
+- **Encrypted backups** — `pg_dump` → age encryption → off-host copy,
+  with restore + integrity drills.
+- **Disaster recovery** — total VPS loss → encrypted restore → verify
+  data and app (proven in CI).
+- **Full observability** — metrics (Prometheus), logs (Loki), traces
+  (Tempo), alerts (Alertmanager, six dashboards).
+- **SLOs** — 99.5% availability over 30d, P99 latency < 500ms, 5xx
+  ratio < 2% (ADR-0033, ADR-0035).
+- **Security** — CodeQL, Trivy, dependency review, SBOM, cosign image
+  signing + verify gate.
+- **Infrastructure as code** — Terraform for Hetzner + DigitalOcean.
 
 ## Stability
 
-v1.0.0 declares the operational surface stable (ADR-0031):
+v1.0.0 declared the operational surface stable (ADR-0031); v1.1.x
+adds the SLO/SLI layer:
 
 | Surface | Commitment |
 |---|---|
 | Scripts (`deploy.sh`, `backup-db.sh`, etc.) | CLI is stable; no breaking changes in v1.x |
 | Compose (`docker-compose.prod.yml`) | Service names and volumes are stable |
-| CI workflows (23) | No workflow removed without a replacement |
-| ADRs (31) | No ADR reversed without a superseding ADR |
+| CI workflows (27) | No workflow removed without a replacement |
+| ADRs (29) | No ADR reversed without a superseding ADR |
 
 ## Maturity model
 
@@ -36,6 +80,7 @@ v1.0.0 declares the operational surface stable (ADR-0031):
 | Encrypted backups | ✅ shipped | encryption drill, restore drill |
 | Disaster recovery | ✅ shipped | total VPS loss drill (destroy → restore → verify) |
 | Observability | ✅ shipped | metrics, logs, traces, alerts (5 CI drills) |
+| SLO / error budget | ✅ shipped | 99.5% availability, latency + 5xx alerts (ADR-0033, ADR-0035) |
 | Security scanning | ✅ shipped | CodeQL, Trivy, dependency review, SBOM |
 | Supply chain | ✅ shipped | multi-arch GHCR, cosign sign + verify, build provenance |
 | TLS automation | ✅ shipped | certbot renewal loop |
@@ -47,7 +92,7 @@ v1.0.0 declares the operational surface stable (ADR-0031):
 | Capacity planning | ✅ shipped | disk exhaustion prediction dashboard |
 | Audit trail | ✅ shipped | JSON-lines log for deploy/rollback/restore/backup |
 | Multi-host HA | 📋 evaluated | ADR-0015 (not shipped; reopens when traffic requires) |
-| Business load tests | 📋 planned | only /health/live/ is tested |
+| Business load tests | 📋 planned | only /health/live/ is load-tested |
 
 ## Quick start
 
@@ -60,6 +105,9 @@ make up                       # bring the stack up
 bash scripts/stacksmith-health.sh  # one-command health check
 make backup                   # take a database backup
 ```
+
+For the full walkthrough (TLS, dashboards, blue-green, backup/restore),
+see [docs/getting-started.md](docs/getting-started.md).
 
 ## What works today (proven in CI)
 
@@ -76,6 +124,10 @@ make backup                   # take a database backup
 - **Tracing drill** — Tempo ingest → query
 - **Chaos drill** — kill worker + stop nginx → verify recovery
 - **DR drill** — total VPS loss → encrypted restore → verify data + app
+- **Latency SLI drill** — nginx JSON access log → promtail → prometheus
+  → recording rules → SLO alerts loaded
+- **SLO metrics drill** — nginx-exporter up, availability SLI, alert
+  rules loaded
 - **Load test** — k6 (50 VUs, p95 < 500ms)
 - **CodeQL** — semantic code analysis
 - **Trivy** — container CVE scan
@@ -89,13 +141,19 @@ See [docs/known-limitations.md](docs/known-limitations.md).
 
 ## Architecture
 
-See [docs/architecture.md](docs/architecture.md) for 5 Mermaid diagrams
-(topology, CI pipeline, deploy sequence, backup/DR flow, firewall).
+See [docs/architecture.md](docs/architecture.md) for five Mermaid
+diagrams (topology, CI pipeline, deploy sequence, backup/DR flow,
+firewall rules).
 
 See [docs/api/health-openapi.json](docs/api/health-openapi.json) for the
 OpenAPI 3.0 spec.
 
-## Architecture decisions (31 ADRs)
+## Architecture decisions (29 ADRs)
+
+ADR numbers are non-contiguous — gaps (0021/22, 0024, 0026/27, 0029)
+are drafts that were merged into adjacent ADRs before publication and
+are intentionally not renumbered. See
+[docs/adr/INDEX.md](docs/adr/INDEX.md) for the status of each.
 
 - [ADR-0001: compose as the deployment unit](docs/adr/0001-use-compose-as-the-deployment-unit.md)
 - [ADR-0002: blue-green with compose](docs/adr/0002-blue-green-with-compose.md)
@@ -116,18 +174,16 @@ OpenAPI 3.0 spec.
 - [ADR-0017: SBOM generation with syft](docs/adr/0017-sbom-generation-with-syft.md)
 - [ADR-0018: load testing with k6](docs/adr/0018-load-testing-with-k6.md)
 - [ADR-0019: multi-arch registry images](docs/adr/0019-multi-arch-registry-images.md)
-- [ADR-0020: cosign image signing](docs/adr/0020-cosign-and-terraform-and-chaos.md)
-- [ADR-0021: Terraform provisioning](docs/adr/0020-cosign-and-terraform-and-chaos.md)
-- [ADR-0022: chaos engineering drill](docs/adr/0020-cosign-and-terraform-and-chaos.md)
-- [ADR-0023: cosign verify gate](docs/adr/0023-cosign-verify-and-disaster-recovery.md)
-- [ADR-0024: disaster recovery drill](docs/adr/0023-cosign-verify-and-disaster-recovery.md)
-- [ADR-0025: deploy-time cosign verify](docs/adr/0025-deploy-verify-automation-cost.md)
-- [ADR-0026: release drafter and Dependabot auto-merge](docs/adr/0025-deploy-verify-automation-cost.md)
-- [ADR-0027: cost monitoring dashboard](docs/adr/0025-deploy-verify-automation-cost.md)
-- [ADR-0028: multi-provider Terraform](docs/adr/0028-multi-provider-and-architecture.md)
-- [ADR-0029: architecture docs and OpenAPI](docs/adr/0028-multi-provider-and-architecture.md)
+- [ADR-0020: cosign, terraform, chaos](docs/adr/0020-cosign-and-terraform-and-chaos.md)
+- [ADR-0023: cosign verify and disaster recovery](docs/adr/0023-cosign-verify-and-disaster-recovery.md)
+- [ADR-0025: deploy verify automation cost](docs/adr/0025-deploy-verify-automation-cost.md)
+- [ADR-0028: multi-provider and architecture](docs/adr/0028-multi-provider-and-architecture.md)
 - [ADR-0030: operational excellence](docs/adr/0030-operational-excellence.md)
 - [ADR-0031: v1.0.0 stability declaration](docs/adr/0031-v1.0.0-stability-declaration.md)
+- [ADR-0032: enforce conventional commits](docs/adr/0032-enforce-conventional-commits.md)
+- [ADR-0033: SLO, SLI, and error budget](docs/adr/0033-slo-sli-error-budget.md)
+- [ADR-0034: nginx exporter and the OSS latency gap](docs/adr/0034-nginx-exporter-and-oss-latency-gap.md)
+- [ADR-0035: latency and 5xx SLI from promtail metrics pipeline](docs/adr/0035-latency-sli-from-promtail-metrics.md)
 
 ## Runbooks
 
@@ -150,11 +206,11 @@ OpenAPI 3.0 spec.
 ├── nginx/                        # reverse proxy + upstreams + TLS
 ├── postgres/                     # tuned postgresql.conf
 ├── monitoring/                   # prometheus, alert + recording rules, blackbox
-├── grafana/                      # 5 provisioned dashboards
+├── grafana/                      # 6 provisioned dashboards
 ├── terraform/                    # multi-provider VPS provisioning
 ├── deploy/systemd/               # backup timer + service units
 └── docs/
-    ├── adr/                      # 31 ADRs
+    ├── adr/                      # 29 ADRs
     ├── runbooks/                 # 4 runbooks
     ├── architecture.md           # 5 Mermaid diagrams
     ├── api/                      # OpenAPI 3.0 spec

@@ -107,7 +107,7 @@ flowchart TB
 | cAdvisor | gcr.io/cadvisor | 8080 | Container metrics |
 | blackbox | prom/blackbox-exporter | 9115 | HTTP probe for /health |
 
-## CI pipeline (24 workflows)
+## CI pipeline (27 workflows)
 
 ```mermaid
 flowchart LR
@@ -124,6 +124,8 @@ flowchart LR
     push --> trace_drill["tracing drill<br/>Tempo → query"]
     push --> chaos_drill["chaos drill<br/>kill → recover"]
     push --> dr_drill["DR drill<br/>total loss → restore"]
+    push --> slo_drill["SLO metrics drill<br/>nginx-exporter up · alerts"]
+    push --> lat_drill["latency SLI drill<br/>nginx log → promtail → prometheus"]
     push --> k6["load test<br/>50 VUs · p95<500ms"]
     push --> codeql["CodeQL<br/>semantic analysis"]
     push --> trivy["Trivy<br/>container CVE scan"]
