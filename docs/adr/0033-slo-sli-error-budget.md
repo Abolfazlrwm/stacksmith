@@ -30,40 +30,47 @@ nginx, and alert on error-budget burn.
 
 | SLO             | Target                          | Window |
 | --------------- | ------------------------------- | ------ |
-| Availability    | 99.5% of requests non-5xx       | 30d    |
-| Latency P99     | < 500ms for 99% of requests     | 5m     |
+| Availability    | 99.5% — health probe succeeds  | 30d    |
+
+> The latency P99 SLO listed in the first draft of this ADR was **retracted**
+> in ADR-0034: the OSS nginx stub_status endpoint exposes no latency data, so
+> the SLI could not be computed. A log-parsing pipeline is the prerequisite
+> for re-introducing a latency SLO.
 
 ### SLIs
 
-- **Availability SLI**: `1 - (5xx / total)` over the window.
-- **Latency SLI**: `histogram_quantile(0.99, nginx_http_request_duration_seconds_bucket)`.
+- **Availability SLI**: `avg_over_time(probe_success[30d])`, where
+  `probe_success` is the blackbox exporter's probe of `/health/live/`.
+  This is an *outage* SLI (did the health endpoint answer), not a
+  *partial-error* SLI (were any requests 5xx). See ADR-0034 for why
+  the per-status-code SLI is not available on OSS nginx.
 
 ### Error budget
 
-A 99.5% availability SLO allows 0.5% of requests to be 5xx over 30
-days. On a single VPS doing ~1 req/s that is ~13,000 allowed failures
-per month, or ~3.6 hours of total outage if all requests fail.
+A 99.5% availability SLO allows 0.5% downtime over 30 days. On a
+single VPS that is ~3.6 hours of total outage per month — enough
+headroom for a reboot, a backup-restore drill, and one bad deploy.
 
 ### Alerts
 
-Two burn-rate alerts (in `monitoring/alert_rules.yml`):
+Two alerts (in `monitoring/alert_rules.yml`):
 
-1. **`SLOErrorBudgetBurnFast`** (critical) — 5xx ratio > 2% for 2m.
-   This burns the budget 14x faster than allowed. Page.
-2. **`SLOErrorBudgetExhausted`** (warning) — 30d 5xx ratio > 0.5%.
-   The budget is gone; deploys should slow down.
-3. **`SLOLatencyP99Breach`** (warning) — P99 > 500ms for 5m.
+1. **`SLOAvailabilityDown`** (critical) — `probe_success` averaged over
+   2m below 0.5. An active outage is burning the budget ~22x faster
+   than allowed. Page.
+2. **`SLOErrorBudgetExhausted`** (warning) — 30d availability below
+   the 99.5% SLO. The budget is gone; deploys should slow down.
 
 ### Dashboard
 
 `grafana/dashboards/slo.json` — six panels:
 
-- Availability % (stat, threshold-colored)
-- Error budget remaining in hours (stat)
-- P99 latency (stat)
-- Request rate by status class (timeseries)
-- 5xx ratio with the 2% fast-burn line (timeseries)
-- Latency percentile bands p50/p95/p99 (timeseries)
+- Availability %, 30d (stat, threshold-colored)
+- Error budget used ratio, 0→1 (stat)
+- Request rate, req/s (stat, from nginx-exporter)
+- Availability probe, 5m average (timeseries)
+- Request rate through nginx, 5m (timeseries)
+- nginx connections: active/reading/writing/waiting (timeseries)
 
 ## Rationale
 
@@ -72,34 +79,42 @@ Two burn-rate alerts (in `monitoring/alert_rules.yml`):
   99.5% (3.6h/month) leaves room for a reboot, a backup restore drill,
   and a bad deploy.
 
-- **nginx as the SLI source.** nginx sees every request, including the
-  ones that never reach the app (502, 504). App-internal metrics would
-  miss the proxy failures.
+- **blackbox probe as the SLI source, not nginx 5xx.** The first draft
+  of this ADR picked "non-5xx ratio" as the availability SLI, assuming
+  nginx-exporter would expose per-status-code counts. It does not — the
+  OSS stub_status page reports only a total request counter, with no
+  `status` label. ADR-0034 records that finding and the decision to
+  use the blackbox probe of `/health/live/` as the SLI instead. The
+  probe catches outages and hard failures (nginx down, app down, port
+  refused), not partial 5xx errors from a misbehaving endpoint. That
+  is a coarser SLO, but it is an *honest* SLO.
 
-- **30d window for budget, 5m for burn.** The 30d window gives a stable
-  budget number. The 5m window catches active incidents fast. This is the
-  standard multi-window multi-burn-rate pattern from the Google SRE
-  workbook, simplified to two alerts.
-
-- **Latency SLO is a warning, not critical.** Slow is bad but not the
-  same as down. The alert pages the on-call only if it persists.
+- **30d window for budget, 2m for burn.** The 30d window gives a stable
+  budget number. The 2m window catches active incidents fast — an
+  outage burning the budget 22x faster than allowed pages on-call.
 
 ## Consequences
 
 - **Positive:** the operator can now answer "how available is the
-  service?" with a number, and can justify slowing down deploys when the
-  budget is low.
-- **Positive:** the fast-burn alert catches a bad deploy within 2 minutes
-  instead of waiting for the high-5xx alert's 5m window.
-- **Negative:** the SLI depends on `nginx_http_requests_total` and
-  `nginx_http_request_duration_seconds_bucket` being scraped. If nginx
-  does not export these (e.g. the stub_status exporter is not
-  configured), the SLO panels are empty. This is a known limitation
-  until the nginx exporter is wired into the compose file.
+  service?" with a number, and can justify slowing down deploys when
+  the budget is low.
+- **Positive:** the fast-burn alert (`SLOAvailabilityDown`) pages
+  within 2 minutes of an outage, instead of waiting for the existing
+  `AppHealthProbeFailing` 5m window.
+- **Negative (retracted):** the latency P99 SLO and the per-status-code
+  availability SLI from the first draft are removed — see ADR-0034. The
+  dashboard's latency percentile panels were replaced with connection
+  counters that stub_status actually produces.
+- **Negative:** the SLI is now an *outage* SLI, not a *quality* SLI. A
+  deploy that returns 500 for 30% of requests but keeps the health
+  endpoint alive would not trip the SLO. The high-5xx alert
+  (`High5xxRate`) remains in `stacksmith-availability` for the partial
+  failure case, but its threshold is a guess (0.1 req/s), not tied to
+  the SLO budget.
 - **Negative:** the 30d window means a new deployment does not move the
-  budget much. An operator who deploys 5 times in a day and each deploy
-  adds 30s of 5xx will not see the budget drop fast. The fast-burn alert
-  is the real signal; the budget is the report.
+  budget fast. An operator who deploys 5 times in a day and each deploy
+  adds 30s of downtime will not see the budget drop fast. The
+  fast-burn alert is the real signal; the budget is the report.
 
 ## Rollout
 
@@ -107,5 +122,7 @@ Two burn-rate alerts (in `monitoring/alert_rules.yml`):
 2. The SLO alerts fire on the existing Alertmanager routing — critical
    to Slack `#alerts`, warning to `#alerts-warn`.
 3. The dashboard auto-provisions via the Grafana dashboards provider.
-4. A future PR wires the nginx exporter into `docker-compose.prod.yml`
+4. The nginx-exporter service is wired into `docker-compose.monitoring.yml`
+   in the same PR (ADR-0034) — without it, `nginx:request_rate_5m` is
+   empty and only the availability panels (blackbox) populate.
    so the SLI metrics are populated.

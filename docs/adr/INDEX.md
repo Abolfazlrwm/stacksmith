@@ -53,12 +53,13 @@ ADR-NNNN: <title>
 | 0031   | [v1.0.0 — stability declaration](0031-v1.0.0-stability-declaration.md) | accepted  | 2026-12-15 |
 | 0032   | [Enforce Conventional Commits](0032-enforce-conventional-commits.md) | accepted  | 2026-12-16 |
 | 0033   | [SLO, SLI, and error budget](0033-slo-sli-error-budget.md) | accepted  | 2026-12-18 |
+| 0034   | [nginx exporter and the OSS latency gap](0034-nginx-exporter-and-oss-latency-gap.md) | accepted | 2026-12-22 |
 
 ## By theme
 
 - **Deployment** — 0001, 0002, 0008, 0025
 - **Backup and recovery** — 0003, 0006, 0007, 0012, 0023
-- **Observability** — 0004, 0009, 0014, 0011, 0030, 0033
+- **Observability** — 0004, 0009, 0014, 0011, 0030, 0033, 0034
 - **Security and supply chain** — 0005, 0013, 0016, 0017, 0019, 0020, 0023, 0025
 - **Performance** — 0018
 - **Infrastructure** — 0015, 0020, 0028
