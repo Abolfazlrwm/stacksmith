@@ -6,7 +6,45 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [1.1.0] — 2026-12-19
+## [1.1.1] — 2026-12-22
+
+Closes the SLO/SLI loop: wires in nginx-exporter and corrects the SLI
+that v1.1.0 got wrong.
+
+### Added
+
+- **Phase 17.1** — `nginx-exporter` service in
+  `docker-compose.monitoring.yml`, `/stub_status` location in
+  `nginx/default.conf` (ACL'd to private ranges), `nginx` scrape job
+  in `monitoring/prometheus.yml`.
+- **Phase 17.2** — `slo-metrics-drill` CI workflow. Asserts
+  `nginx_up`, that `/stub_status` is blocked from the host, that the
+  `nginx:request_rate_5m` and `slo:availability_5m` recording rules
+  populate, and that both SLO alerts are loaded.
+- **ADR-0034** — records the OSS nginx limitation (stub_status has no
+  per-status-code counts, no latency data) and the decision to retract
+  the latency P99 SLO and switch the availability SLI to blackbox
+  `probe_success`.
+
+### Changed
+
+- **ADR-0033 amended** — the availability SLI is now
+  `avg_over_time(probe_success[30d])`, not a 5xx ratio (which OSS nginx
+  cannot produce). The latency P99 SLO is retracted.
+- `monitoring/recording_rules.yml` — replaced the two non-existent
+  recording rules (`nginx:p95_latency_ms`, `nginx:error_rate_5xx`)
+  with three that exist (`nginx:request_rate_5m`,
+  `slo:availability_5m`, `slo:availability_30d`,
+  `slo:error_budget_used_ratio`, `nginx:connections_active`).
+- `monitoring/alert_rules.yml` `stacksmith-slo` group rewritten:
+  `SLOAvailabilityDown` (critical, probe failing 2m) replaces
+  `SLOErrorBudgetBurnFast`; `SLOLatencyP99Breach` removed with a
+  comment explaining why.
+- `grafana/dashboards/slo.json` v2 — six panels rebuilt around real
+  metrics: availability %, error budget used, request rate, probe
+  trend, request rate trend, nginx connections.
+
+ — 2026-12-19
 
 Quality hardening and SLO observability.
 
