@@ -61,7 +61,8 @@ for this and is a single container.
 
 Rejected. Grafana's built-in alerting is excellent but ties alerting to
 the Grafana instance — if Grafana is down, alerts do not fire. Prometheus
-+ Alertmanager is independent of Grafana; Grafana is just a viewer.
+
+- Alertmanager is independent of Grafana; Grafana is just a viewer.
 
 ### PagerDuty / Opsgenie as the primary receiver
 

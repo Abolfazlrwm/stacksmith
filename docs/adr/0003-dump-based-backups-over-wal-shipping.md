@@ -8,7 +8,8 @@
 
 The docubot database needs a backup strategy. The two mainstream options
 are logical dumps (`pg_dump`) and continuous WAL shipping (`pg_basebackup`
-+ `archive_command` + `restore_command`). The choice is driven by the
+
+- `archive_command` + `restore_command`). The choice is driven by the
 recovery point objective (RPO), the recovery time objective (RTO), the
 operational surface, and what the CI pipeline can realistically test.
 

@@ -41,7 +41,7 @@ make smoke             # run the local smoke path
 
 Every commit and every PR title must match:
 
-```
+```text
 type(scope): subject
 
 optional body, wrapped at 100 chars
@@ -60,7 +60,7 @@ optional footer
 
 Examples:
 
-```
+```text
 feat(deploy): cosign verify before switching upstream
 
 deploy.sh now checks for cosign and a GHCR image before starting the

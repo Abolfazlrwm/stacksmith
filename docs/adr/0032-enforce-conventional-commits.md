@@ -79,7 +79,7 @@ free.
 
 Two equivalent ways to mark a breaking change:
 
-```
+```text
 feat(deploy)!: drop Docker 20.x, require 24.x
 
 feat(deploy): drop Docker 20.x, require 24.x
