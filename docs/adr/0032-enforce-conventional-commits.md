@@ -46,7 +46,9 @@ The config (`commitlint/commitlint.config.cjs`) extends
 `@commitlint/config-conventional` and adds:
 
 - `header-max-length: 72` (the GitHub commit list truncates at 72)
-- `subject-case: lower-case`
+- `subject-case: lower-case` (warning — technical identifiers like
+  `ADR-0032`, `GHCR`, `cosign`, `v1.0` are naturally mixed-case, so this
+  is a nudge, not a block)
 - `subject-full-stop: never` (no trailing period)
 - `body-max-line-length: 100` (warning, matches our prose wrap)
 

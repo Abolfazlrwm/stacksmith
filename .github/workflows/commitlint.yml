@@ -72,4 +72,6 @@ jobs:
         run: |
           BASE="${{ github.event.pull_request.base.sha }}"
           HEAD="${{ github.event.pull_request.head.sha }}"
-          (cd commitlint && npx commitlint --from="$BASE" --to="$HEAD" --verbose)
+          npx --prefix commitlint commitlint \
+            --config commitlint/commitlint.config.cjs \
+            --from="$BASE" --to="$HEAD" --verbose

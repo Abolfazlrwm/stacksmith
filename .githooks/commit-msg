@@ -29,4 +29,6 @@ if [ ! -d commitlint/node_modules ]; then
   (cd commitlint && npm install --no-fund --no-audit >/dev/null 2>&1) || true
 fi
 
-npx --prefix commitlint commitlint --edit "$1" --verbose
+npx --prefix commitlint commitlint \
+  --config commitlint/commitlint.config.cjs \
+  --edit "$1" --verbose

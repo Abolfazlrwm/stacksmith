@@ -16,14 +16,18 @@ module.exports = {
   rules: {
     // Scope is optional but must be lowercase if present.
     'scope-case': [2, 'always', 'lower-case'],
-    // Subject: lowercase, imperative mood, no trailing period, max 72 chars.
-    'subject-case': [2, 'always', 'lower-case'],
+    // Subject: imperative mood, no trailing period, max 72 chars.
+    // subject-case is a warning, not an error: technical identifiers
+    // (ADR-0032, GHCR, cosign, v1.0, PRs) are naturally mixed-case, and
+    // forcing lower-case mangles them. The spirit of the rule (imperative
+    // mood, no title-case sentences) is enforced by review, not by lint.
+    'subject-case': [1, 'always', 'lower-case'],
     'subject-empty': [2, 'never'],
     'subject-full-stop': [2, 'never', '.'],
     'header-max-length': [2, 'always', 72],
-    // Body lines: hard wrap at 100 chars (matches our prose style).
+    // Body lines: wrap at 100 chars (warning — not worth blocking a PR).
     'body-max-line-length': [1, 'always', 100],
-    // Footer lines: hard wrap at 100 chars.
+    // Footer lines: wrap at 100 chars (warning).
     'footer-max-line-length': [1, 'always', 100],
     // Require a body for non-trivial commits (warning level so docs/chore
     // one-liners are not blocked).

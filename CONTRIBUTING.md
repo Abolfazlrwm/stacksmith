@@ -52,8 +52,9 @@ optional footer
 - **type** is required and must be one of: `feat`, `fix`, `docs`, `style`,
   `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
 - **scope** is optional, lowercase when present (`deploy`, `ci`, `ops`).
-- **subject** is lowercase, imperative mood (`add`, not `added`), no
-  trailing period, max 72 chars.
+- **subject** is imperative mood (`add`, not `added`), no trailing period,
+  max 72 chars. Lower-case is preferred but not enforced, so technical
+  identifiers (`ADR-0032`, `GHCR`, `cosign`, `v1.0`) stay readable.
 - **breaking change**: use the `!` marker (`feat(deploy)!: drop Docker 20.x`)
   or a `BREAKING CHANGE:` footer with an explanation.
 
