@@ -74,41 +74,35 @@ groups:
           summary: "High 5xx rate through nginx"
           description: "More than 0.1 req/s of 5xx responses for 5m."
 
-  # --- SLO / error budget (ADR-0033) ---
+  # --- SLO / error budget (ADR-0033, ADR-0034) ---
   # SLO: 99.5% availability over 30 days → 3.6h error budget per month.
-  # SLI: ratio of non-5xx requests to total requests through nginx.
-  # The 30d window means a new deployment does not immediately trip; the
-  # 5m window is the fast-burn detector for active incidents.
+  # SLI: blackbox probe_success to /health/live/. The OSS nginx
+  # stub_status endpoint does NOT expose per-status-code request counts
+  # (only the total), so we measure availability as "the health probe
+  # succeeded", not "no 5xx". This catches outages and slow shutdowns,
+  # not partial 5xx errors — see ADR-0034 for the trade-off and the
+  # log-parsing pipeline that would close the gap.
   - name: stacksmith-slo
     rules:
-      - alert: SLOErrorBudgetBurnFast
-        expr: |
-          (
-            sum(rate(nginx_http_requests_total{status=~"5.."}[5m]))
-            /
-            clamp_min(sum(rate(nginx_http_requests_total[5m])), 1)
-          ) > 0.02
-        for: 2m
+      - alert: SLOAvailabilityDown
+        # Fast-burn detector: probe failing for 2m means an outage
+        # is burning the budget ~22x faster than the SLO allows.
+        expr: avg_over_time(probe_success[2m]) < 0.5
+        for: 0m
         labels:
           severity: critical
           slo: availability
         annotations:
-          summary: "SLO fast burn — error rate above 2% for 2m"
+          summary: "SLO fast burn — health probe failing"
           description: >-
-            The 5xx ratio through nginx exceeds 2% for 2 minutes. This burns
-            the 30-day error budget 14x faster than allowed. Page and
-            investigate.
+            The blackbox probe to /health/live/ has been failing for 2
+            minutes. The 30-day availability error budget (0.5%, ~3.6h)
+            is being burned ~22x faster than allowed. Page and
+            investigate the nginx and app-blue containers.
 
       - alert: SLOErrorBudgetExhausted
-        expr: |
-          (
-            1 -
-            (
-              sum(rate(nginx_http_requests_total{status!~"5.."}[30d]))
-              /
-              clamp_min(sum(rate(nginx_http_requests_total[30d])), 1)
-            )
-          ) > 0.005
+        # 30-day availability below the 99.5% SLO threshold.
+        expr: slo:availability_30d < 0.995
         for: 10m
         labels:
           severity: warning
@@ -116,22 +110,15 @@ groups:
         annotations:
           summary: "SLO error budget exhausted over 30d"
           description: >-
-            The 30-day 5xx ratio exceeds the 0.5% SLO threshold. No more
-            error budget remains for the rest of the month — deploys should
-            be more careful.
+            The 30-day availability (probe_success average) has dropped
+            below the 99.5% SLO. No more error budget remains for the
+            rest of the month — deploys should be more careful. Check
+            the SLO dashboard for the burn trend.
 
-      - alert: SLOLatencyP99Breach
-        # P99 latency through nginx must stay under 500ms.
-        expr: |
-          histogram_quantile(0.99,
-            sum(rate(nginx_http_request_duration_seconds_bucket[5m])) by (le)
-          ) > 0.5
-        for: 5m
-        labels:
-          severity: warning
-          slo: latency
-        annotations:
-          summary: "SLO latency P99 above 500ms"
-          description: >-
-            P99 latency through nginx exceeds 500ms for 5m. User-visible
-            slowness.
+      # NOTE: the latency P99 alert (SLOLatencyP99Breach) was removed
+      # in ADR-0034. OSS nginx does not expose a latency histogram
+      # (stub_status has no timing data, nginx-prometheus-exporter
+      # produces no histograms), so the alert could never fire on real
+      # data. Re-add it when a log-parsing pipeline (promtail → Loki
+      # → a recording rule that derives p99 from nginx access-log
+      # $request_time) lands.

@@ -29,18 +29,34 @@ groups:
             * 100
           )
 
-      # 5-minute p95 request latency through nginx.
-      - record: nginx:p95_latency_ms
-        expr: >-
-          histogram_quantile(0.95,
-            rate(nginx_http_request_duration_seconds_bucket[5m])
-          ) * 1000
+      # 5-minute request rate through nginx (requests per second).
+      # nginx-exporter exposes nginx_http_requests_total as a single
+      # counter with no labels (OSS stub_status limitation, ADR-0034),
+      # so this is the total request rate — not split by status code.
+      - record: nginx:request_rate_5m
+        expr: sum(rate(nginx_http_requests_total[5m]))
 
-      # 5-minute error rate (5xx) through nginx.
-      - record: nginx:error_rate_5xx
-        expr: >-
-          sum(rate(nginx_http_requests_total{status=~"5.."}[5m]))
-          / sum(rate(nginx_http_requests_total[5m]))
+      # Availability SLI: blackbox probe success to /health/live/.
+      # We use probe_success (1 = up, 0 = down) averaged over 5m. This
+      # catches outages, not partial 5xx errors — see ADR-0034 for why
+      # OSS nginx cannot give us a per-status-code breakdown without
+      # either NGINX Plus or a log-parsing pipeline.
+      - record: slo:availability_5m
+        expr: avg_over_time(probe_success[5m])
+
+      # 30-day availability (the SLO window).
+      - record: slo:availability_30d
+        expr: avg_over_time(probe_success[30d])
+
+      # Error budget remaining: 0.5% allowed downtime over 30d.
+      # A 99.5% SLO means availability can be as low as 0.995; budget
+      # used = (1 - availability) / 0.005, capped at 1.
+      - record: slo:error_budget_used_ratio
+        expr: clamp_max((1 - slo:availability_30d) / 0.005, 1)
+
+      # Active nginx connections (gauge, from stub_status).
+      - record: nginx:connections_active
+        expr: nginx_connections_active
 
       # Backup freshness in hours.
       - record: backup:age_hours
