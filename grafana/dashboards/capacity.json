@@ -1,0 +1,103 @@
+{
+  "title": "Stacksmith — capacity planning",
+  "uid": "stacksmith-capacity",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "60s",
+  "time": {"from": "now-7d", "to": "now"},
+  "tags": ["stacksmith", "capacity"],
+  "templating": {"list": []},
+  "panels": [
+    {
+      "id": 1,
+      "title": "CPU trend (7d, per container)",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "container:cpu_usage_percent",
+          "refId": "A",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "custom": {"drawStyle": "line", "lineInterpolation": "smooth"}}}
+    },
+    {
+      "id": 2,
+      "title": "Memory trend (7d, per container, MB)",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {
+          "expr": "container:memory_usage_mb",
+          "refId": "A",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "MB"}}
+    },
+    {
+      "id": 3,
+      "title": "Disk growth rate (MB/day, 7d trend)",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8},
+      "targets": [
+        {
+          "expr": "deriv(node_filesystem_size_bytes{mountpoint=\"/\"}[1d]) / 1024 / 1024",
+          "refId": "A",
+          "legendFormat": "growth rate {{mountpoint}}"
+        },
+        {
+          "expr": "node_filesystem_size_bytes{mountpoint=\"/\"} - node_filesystem_avail_bytes{mountpoint=\"/\"}",
+          "refId": "B",
+          "legendFormat": "used {{mountpoint}}"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "MB"}}
+    },
+    {
+      "id": 4,
+      "title": "Predicted disk exhaustion (days until 90%)",
+      "type": "stat",
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 16},
+      "targets": [
+        {
+          "expr": "(node_filesystem_avail_bytes{mountpoint=\"/\"} * 0.1) / clamp_min(rate(node_filesystem_size_bytes{mountpoint=\"\"}[1d]) - rate(node_filesystem_avail_bytes{mountpoint=\"/\"}[1d]), 1) / 86400",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "d", "thresholds": {"steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 7}, {"color": "green", "value": 30}]}}}
+    },
+    {
+      "id": 5,
+      "title": "Container restart count (last 7d)",
+      "type": "stat",
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "gridPos": {"h": 6, "w": 8, "x": 8, "y": 16},
+      "targets": [
+        {
+          "expr": "sum(container:restarts_1h)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Request rate (req/s, 7d)",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "gridPos": {"h": 6, "w": 8, "x": 16, "y": 16},
+      "targets": [
+        {
+          "expr": "sum(rate(nginx_http_requests_total[5m]))",
+          "refId": "A",
+          "legendFormat": "req/s"
+        }
+      ]
+    }
+  ]
+}
