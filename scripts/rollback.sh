@@ -29,4 +29,5 @@ else
 fi
 
 echo "[rollback] active=$ACTIVE → rolling back to $TARGET"
+bash scripts/audit-log.sh "rollback" "active=$ACTIVE → $TARGET"
 exec bash scripts/deploy.sh "$TARGET"

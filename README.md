@@ -114,6 +114,7 @@ release closes every item from the v0.2 roadmap. What remains:
 - [ADR-0027: cost monitoring dashboard](docs/adr/0025-deploy-verify-automation-cost.md)
 - [ADR-0028: multi-provider Terraform](docs/adr/0028-multi-provider-and-architecture.md)
 - [ADR-0029: architecture docs and OpenAPI](docs/adr/0028-multi-provider-and-architecture.md)
+- [ADR-0030: maintenance, recording rules, health CLI, capacity, audit](docs/adr/0030-operational-excellence.md)
 
 ## Architecture
 
