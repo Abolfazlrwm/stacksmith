@@ -92,7 +92,10 @@ groups:
       slo: availability
     annotations:
       summary: "SLO fast burn — error rate above 2% for 2m"
-      description: "The 5xx ratio through nginx exceeds 2% for 2 minutes. This burns the 30-day error budget 14x faster than allowed. Page and investigate."
+      description: >-
+        The 5xx ratio through nginx exceeds 2% for 2 minutes. This burns
+        the 30-day error budget 14x faster than allowed. Page and
+        investigate.
 
   - alert: SLOErrorBudgetExhausted
     expr: |
@@ -110,7 +113,10 @@ groups:
       slo: availability
     annotations:
       summary: "SLO error budget exhausted over 30d"
-      description: "The 30-day 5xx ratio exceeds the 0.5% SLO threshold. No more error budget remains for the rest of the month — deploys should be more careful."
+      description: >-
+        The 30-day 5xx ratio exceeds the 0.5% SLO threshold. No more
+        error budget remains for the rest of the month — deploys should
+        be more careful.
 
   - alert: SLOLatencyP99Breach
     # P99 latency through nginx must stay under 500ms for 95% of the 5m window.
