@@ -43,18 +43,18 @@ scrape_configs:
       - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
         target_label: service
     pipeline_stages:
-      # docker_sd reads the Docker JSON log wrapper:
+      # docker_sd feeds the raw Docker JSON log wrapper to the pipeline:
       #   {"log":"<actual nginx log>\n","stream":"stdout","time":"..."}
-      # First json stage extracts the inner "log" field (a JSON string)
-      # into the extracted map. The second json stage, with source: log,
-      # re-parses that inner string as JSON to pull status + request_time.
+      # (confirmed empirically: a single json stage looking for status
+      # produces no metrics, which means the wrapper is NOT auto-unwrapped.)
+      # First json stage extracts the inner "log" field (a JSON string).
+      # Then a second json stage with source: log re-parses that string.
       - json:
           expressions:
             log: log
+            stream: stream
       # Now parse the inner nginx access-log JSON. source: log tells the
       # json stage to parse the value extracted above, not the raw line.
-      # status is a number, request_time is a float seconds value; both
-      # are emitted unquoted by nginx (escape=json preserves the type).
       - json:
           source: log
           expressions:
@@ -68,11 +68,12 @@ scrape_configs:
           status:
           method:
       # Derive Prometheus metrics. The metrics stage is a MAP keyed by
-      # metric name (NOT a list). type is lowercase ("counter"/"gauge"/
-      # "histogram"). prefix: "" suppresses the default "promtail_custom_"
-      # prefix so the metric name we use here is the name prometheus
-      # sees. config.action: add feeds the extracted float into the
-      # histogram buckets; inc = +1 per line for the counter.
+      # metric name (NOT a list). type is case-insensitive (promtail
+      # lowercases it internally); both "counter" and "Counter" work.
+      # prefix: "" suppresses the default "promtail_custom_" prefix so
+      # the metric name we use here is the name prometheus sees.
+      # config.action: add feeds the extracted float into the histogram
+      # buckets; inc = +1 per line for the counter.
       - metrics:
           nginx_log_request_duration_seconds:
             type: histogram

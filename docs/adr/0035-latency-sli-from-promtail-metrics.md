@@ -98,26 +98,42 @@ outage-only `SLOAvailabilityDown`.
   isolate app vs nginx overhead — for that, pair with the upstream
   response time (already logged but not yet a metric).
 
-## Known issue (as of v1.1.2)
+## Status of the promtail metrics stage (open, as of v1.1.3)
 
-The `latency-sli-drill` CI workflow is `continue-on-error`. The
-promtail metrics pipeline stage (promtail 3.6.8) does not expose the
-derived `nginx_log_*` metrics the way this ADR describes, despite the
-config being syntactically valid and promtail starting cleanly with no
-errors. The nginx access logs are confirmed to be emitted as valid
-JSON with `request_time` and `status` fields, and promtail discovers
-the nginx container as a target.
+The `nginx_log_*` metrics the recording rules depend on are **not yet
+produced** by promtail's `metrics` pipeline stage. The pipeline
+architecture is sound and verified: nginx emits a valid JSON access log
+with `request_time` and `status`, promtail discovers the nginx
+container, promtail is scraped by prometheus (`up{job=promtail}=1`),
+both alerts load, and the recording rules are registered. What is
+missing is the metrics stage actually emitting the histogram and
+counter.
 
-The pipeline architecture is sound — JSON log format, prometheus
-scrape config, recording rules, alerts, and dashboard are all correct.
-The gap is specifically in the promtail `metrics` pipeline stage
-configuration: the extracted map fields (`status`, `request_time`) are
-not being found by the metrics stage, which logs "source does not
-exist" at debug level.
+Two hypotheses were tested and both produced no metrics:
 
-This is tracked as open work. The drill runs on every push to catch a
-regression or a fix; when promtail exposes the metrics correctly, the
-drill will pass and the `continue-on-error` can be removed.
+1. **Two json stages** (first to unwrap the Docker log wrapper, second
+   to parse the inner nginx JSON) — the metrics stage logged "source
+   does not exist" at debug level.
+2. **One json stage** parsing `status`/`request_time`/`method`/`uri`
+   directly — same result.
+
+This means the source fields are not landing in the extracted map
+under either interpretation of how `docker_sd_configs` feeds lines to
+the pipeline. The exact mechanism (whether the wrapper is auto-
+unwrapped, whether the `labels` stage silently drops numeric values
+before the `metrics` stage runs, whether `config.action` is required
+on the histogram) is unresolved. Local docker is unavailable in the
+build environment, so iteration is limited to slow CI cycles.
+
+**Pragmatic decision for v1.1.3:** the `latency-sli-drill` workflow
+asserts what is verifiably true — promtail is up, prometheus scrapes
+it, both alerts load — and treats the metrics stage and recording-rule
+values as **advisory** (printed, not failed on). Failing the drill on
+the metrics stage would block every PR on a known issue. The drill
+remains a blocking check for the parts that work; when the metrics
+stage is debugged (or replaced with a small exporter that parses the
+nginx access log directly), the advisory steps are promoted back to
+assertions.
 
 - **Future:** the `upstream_response_time` field is in the JSON log
   but not yet a metric. A follow-up could add a second histogram to
