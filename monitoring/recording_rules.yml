@@ -1,0 +1,55 @@
+# Prometheus recording rules — pre-computed metrics for faster dashboards
+# and more efficient alerts. Loaded by prometheus.yml.
+groups:
+  - name: stacksmith-recording
+    interval: 30s
+    rules:
+      # CPU utilization per container (as a percentage of one core).
+      - record: container:cpu_usage_percent
+        expr: rate(container_cpu_usage_seconds_total{name!=""}[5m]) * 100
+
+      # Memory usage per container (in MB).
+      - record: container:memory_usage_mb
+        expr: container_memory_usage_bytes{name!=""} / 1024 / 1024
+
+      # Host CPU utilization (percentage).
+      - record: host:cpu_usage_percent
+        expr: (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m]))) * 100
+
+      # Host memory utilization (percentage).
+      - record: host:memory_usage_percent
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+
+      # Host disk utilization (percentage, root filesystem).
+      - record: host:disk_usage_percent
+        expr: >-
+          100 - (
+            node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+            / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+            * 100
+          )
+
+      # 5-minute p95 request latency through nginx.
+      - record: nginx:p95_latency_ms
+        expr: >-
+          histogram_quantile(0.95,
+            rate(nginx_http_request_duration_seconds_bucket[5m])
+          ) * 1000
+
+      # 5-minute error rate (5xx) through nginx.
+      - record: nginx:error_rate_5xx
+        expr: >-
+          sum(rate(nginx_http_requests_total{status=~"5.."}[5m]))
+          / sum(rate(nginx_http_requests_total[5m]))
+
+      # Backup freshness in hours.
+      - record: backup:age_hours
+        expr: (time() - backup_last_success_timestamp_seconds) / 3600
+
+      # Container restart count in the last hour.
+      - record: container:restarts_1h
+        expr: increase(container_restart_count{name!=""}[1h])
+
+      # Maintenance mode status.
+      - record: stacksmith:maintenance_active
+        expr: stacksmith_maintenance_active
