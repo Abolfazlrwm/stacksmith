@@ -1,0 +1,164 @@
+---
+name: slo-metrics-drill
+
+# Prove the SLO/SLI pipeline (ADR-0033, ADR-0034) is wired end-to-end:
+# nginx-exporter scrapes /stub_status, prometheus scrapes the exporter,
+# the recording rules compute slo:availability_5m and nginx:request_rate_5m,
+# and the SLO dashboard's queries return non-empty results.
+#
+# This drill exists because the first draft of ADR-0033 referenced
+# metrics that do not exist on OSS nginx (per-status-code counts and a
+# latency histogram). The drill would have caught that gap before it
+# shipped. Going forward it guards against regressions like a removed
+# scrape job or a renamed metric.
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  slo-metrics-drill:
+    name: nginx-exporter up → scrape → query SLI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write CI .env
+        run: |
+          cp .env.example .env
+          sed -i 's/DJANGO_SECRET_KEY=.*/DJANGO_SECRET_KEY=ci-test-secret-key-not-for-production-0123456789/' .env
+          sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci-test-password/' .env
+          sed -i 's/DJANGO_ALLOWED_HOSTS=.*/DJANGO_ALLOWED_HOSTS=*/' .env
+          sed -i 's/NGINX_HTTP_PORT=.*/NGINX_HTTP_PORT=8089/' .env
+
+      - name: Bring up the stack and the monitoring overlay
+        run: |
+          # Both files together: nginx-exporter is in prod (with
+          # depends_on nginx), prometheus/grafana/etc. are in
+          # monitoring. The --wait blocks until every listed service
+          # is healthy.
+          docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d --build
+          docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d --wait \
+            app-blue postgres redis nginx nginx-exporter prometheus blackbox
+
+      - name: Wait for nginx-exporter to be scraped
+        run: |
+          # Give prometheus a few scrape intervals to discover targets.
+          sleep 30
+          # Debug: can the exporter reach /stub_status at all?
+          docker run --rm --network stacksmith_default curlimages/curl:8.10.1 \
+            -s -o /dev/null -w 'stub_status HTTP %{http_code}\n' \
+            http://nginx:80/stub_status || true
+          # Debug: what does prometheus see? Dump the targets.
+          echo "--- prometheus /api/v1/targets ---"
+          curl -s "http://127.0.0.1:9090/api/v1/targets" 2>/dev/null \
+            | jq -r '.data.activeTargets[]?
+              | "\(.labels.job) \(.scrapeUrl) health=\(.health) lastError=\(.lastError // "")"' \
+            || echo "targets query failed"
+          echo "--- up{} (all jobs) ---"
+          curl -s "http://127.0.0.1:9090/api/v1/query?query=up" 2>/dev/null \
+            | jq -r '.data.result[]? | "\(.metric.job): up=\(.value[1])"' \
+            || echo "up query failed"
+          # Wait for nginx_up specifically (the exporter's internal scrape).
+          for i in $(seq 1 30); do
+            up=$(curl -s "http://127.0.0.1:9090/api/v1/query?query=nginx_up" 2>/dev/null \
+              | jq -r '.data.result[0].value[1]' 2>/dev/null || echo "")
+            if [ "$up" = "1" ]; then
+              echo "nginx_up=1 after ${i}s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "nginx_up did not become 1 — exporter not scraped"
+          echo "--- final up{} (all jobs) ---"
+          curl -s "http://127.0.0.1:9090/api/v1/query?query=up" 2>/dev/null \
+            | jq -r '.data.result[]? | "\(.metric.job): up=\(.value[1])"' || true
+          docker compose -f docker-compose.prod.yml \
+            -f docker-compose.monitoring.yml logs --no-color \
+            nginx-exporter nginx prometheus || true
+          exit 1
+
+      - name: Verify /stub_status returns a parseable body
+        run: |
+          # The ACL in nginx/default.conf restricts /stub_status to
+          # private ranges (10/8, 172.16/12, 192.168/16). The CI runner
+          # reaches nginx through the docker bridge gateway, which is
+          # in 172.16/12 — so the host can reach /stub_status too.
+          # That is an accepted limitation (ADR-0034): there is no way
+          # for nginx to tell apart the exporter from the host when
+          # both come through the docker bridge. The public interface
+          # is guarded by the VPS firewall (port 80 only open in
+          # production, never 8089), so the ACL is defense-in-depth,
+          # not the only boundary.
+          #
+          # What we CAN assert: the stub_status body is the expected
+          # text format the exporter parses (not an error page).
+          body=$(curl -s http://127.0.0.1:8089/stub_status 2>/dev/null || echo "")
+          echo "stub_status body:"
+          echo "$body"
+          if ! echo "$body" | grep -q "Active connections"; then
+            echo "FAIL: stub_status did not return the expected text"
+            exit 1
+          fi
+          echo "OK: stub_status returns parseable text"
+
+      - name: Generate traffic so the request counter advances
+        run: |
+          for i in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:8089/health/live/ >/dev/null || true
+          done
+
+      - name: Assert nginx:request_rate_5m recording rule populated
+        run: |
+          set -euo pipefail
+          # Wait for prometheus to evaluate the recording rule (30s interval).
+          sleep 35
+          val=$(curl -s "http://127.0.0.1:9090/api/v1/query?query=nginx:request_rate_5m" 2>/dev/null \
+            | jq -r '.data.result[0].value[1]' 2>/dev/null || echo "")
+          if [ -z "$val" ] || [ "$val" = "null" ]; then
+            echo "FAIL: nginx:request_rate_5m is empty — recording rule not evaluated or exporter not scraped"
+            exit 1
+          fi
+          echo "nginx:request_rate_5m = $val req/s"
+
+      - name: Assert slo:availability_5m recording rule populated
+        run: |
+          set -euo pipefail
+          val=$(curl -s "http://127.0.0.1:9090/api/v1/query?query=slo:availability_5m" 2>/dev/null \
+            | jq -r '.data.result[0].value[1]' 2>/dev/null || echo "")
+          if [ -z "$val" ] || [ "$val" = "null" ]; then
+            echo "FAIL: slo:availability_5m is empty — blackbox probe not scraped or recording rule missing"
+            exit 1
+          fi
+          echo "slo:availability_5m = $val"
+
+      - name: Assert the SLO alerts are loaded
+        run: |
+          set -euo pipefail
+          rules=$(curl -s "http://127.0.0.1:9090/api/v1/rules" 2>/dev/null)
+          for alert in SLOAvailabilityDown SLOErrorBudgetExhausted; do
+            found=$(echo "$rules" | jq -r --arg a "$alert" \
+              '.data.groups[].rules[] | select(.name==$a) | .name' 2>/dev/null | head -1)
+            if [ "$found" != "$alert" ]; then
+              echo "FAIL: alert $alert not loaded by prometheus"
+              echo "$rules" | jq '.data.groups[].rules[].name' 2>/dev/null | head -20
+              exit 1
+            fi
+            echo "OK: alert $alert loaded"
+          done
+
+      - name: Dump logs on failure
+        if: failure()
+        run: |
+          docker compose -f docker-compose.prod.yml \
+            -f docker-compose.monitoring.yml logs --no-color \
+            nginx-exporter nginx prometheus || true
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml down --remove-orphans -v || true
