@@ -1,0 +1,53 @@
+# markdownlint configuration — keeps docs consistent across the repo.
+# Reference: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+
+# Default state for all rules.
+default: true
+
+# Line length: we wrap prose at ~100 chars, but tables and code blocks
+# often need more. Warn, do not error.
+MD013:
+  line_length: 100
+  heading_line_length: 100
+  code_block_line_length: 120
+  tables: false
+
+# Headings: ATX-style only (no Setext).
+MD003:
+  style: atx
+
+# Inline HTML: allow it — we use <details>, <sub>, <sup> in ADRs and
+# the architecture doc.
+MD033:
+  allowed_elements: [details, summary, sub, sup, br, kbd]
+
+# Fenced code blocks: require a language tag for syntax highlighting.
+MD040: true
+
+# First line in a file: must be a top-level heading.
+MD041: true
+
+# Code block style: fenced, not indented.
+MD046:
+  style: fenced
+
+# Ordered list item prefix: real sequential numbering (1, 2, 3) —
+# runbooks use step numbers that match what the reader sees.
+MD029:
+  style: ordered
+
+# Multiple top-level headings: allow (TOC docs use it).
+MD025: false
+
+# Duplicate headings: allow (ADRs have repeated sections by design).
+MD024: false
+
+# Table column style: do not enforce — our tables mix compact and
+# padded styles intentionally.
+MD060: false
+
+# Blank lines around headings: required.
+MD022: true
+
+# No bare URLs — wrap in angle brackets.
+MD034: true
