@@ -79,55 +79,59 @@ groups:
   # SLI: ratio of non-5xx requests to total requests through nginx.
   # The 30d window means a new deployment does not immediately trip; the
   # 5m window is the fast-burn detector for active incidents.
-  - alert: SLOErrorBudgetBurnFast
-    expr: |
-      (
-        sum(rate(nginx_http_requests_total{status=~"5.."}[5m]))
-        /
-        clamp_min(sum(rate(nginx_http_requests_total[5m])), 1)
-      ) > 0.02
-    for: 2m
-    labels:
-      severity: critical
-      slo: availability
-    annotations:
-      summary: "SLO fast burn — error rate above 2% for 2m"
-      description: >-
-        The 5xx ratio through nginx exceeds 2% for 2 minutes. This burns
-        the 30-day error budget 14x faster than allowed. Page and
-        investigate.
+  - name: stacksmith-slo
+    rules:
+      - alert: SLOErrorBudgetBurnFast
+        expr: |
+          (
+            sum(rate(nginx_http_requests_total{status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(nginx_http_requests_total[5m])), 1)
+          ) > 0.02
+        for: 2m
+        labels:
+          severity: critical
+          slo: availability
+        annotations:
+          summary: "SLO fast burn — error rate above 2% for 2m"
+          description: >-
+            The 5xx ratio through nginx exceeds 2% for 2 minutes. This burns
+            the 30-day error budget 14x faster than allowed. Page and
+            investigate.
 
-  - alert: SLOErrorBudgetExhausted
-    expr: |
-      (
-        1 -
-        (
-          sum(rate(nginx_http_requests_total{status!~"5.."}[30d]))
-          /
-          clamp_min(sum(rate(nginx_http_requests_total[30d])), 1)
-        )
-      ) > 0.005
-    for: 10m
-    labels:
-      severity: warning
-      slo: availability
-    annotations:
-      summary: "SLO error budget exhausted over 30d"
-      description: >-
-        The 30-day 5xx ratio exceeds the 0.5% SLO threshold. No more
-        error budget remains for the rest of the month — deploys should
-        be more careful.
+      - alert: SLOErrorBudgetExhausted
+        expr: |
+          (
+            1 -
+            (
+              sum(rate(nginx_http_requests_total{status!~"5.."}[30d]))
+              /
+              clamp_min(sum(rate(nginx_http_requests_total[30d])), 1)
+            )
+          ) > 0.005
+        for: 10m
+        labels:
+          severity: warning
+          slo: availability
+        annotations:
+          summary: "SLO error budget exhausted over 30d"
+          description: >-
+            The 30-day 5xx ratio exceeds the 0.5% SLO threshold. No more
+            error budget remains for the rest of the month — deploys should
+            be more careful.
 
-  - alert: SLOLatencyP99Breach
-    # P99 latency through nginx must stay under 500ms for 95% of the 5m window.
-    expr: |
-      histogram_quantile(0.99,
-        sum(rate(nginx_http_request_duration_seconds_bucket[5m])) by (le)
-      ) > 0.5
-    for: 5m
-    labels:
-      severity: warning
-      slo: latency
-    annotations:
-      summary: "SLO latency P99 above 500ms"
-      description: "P99 latency through nginx exceeds 500ms for 5m. User-visible slowness."
+      - alert: SLOLatencyP99Breach
+        # P99 latency through nginx must stay under 500ms.
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(nginx_http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          slo: latency
+        annotations:
+          summary: "SLO latency P99 above 500ms"
+          description: >-
+            P99 latency through nginx exceeds 500ms for 5m. User-visible
+            slowness.
