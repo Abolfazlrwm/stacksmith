@@ -83,6 +83,25 @@ fi
 
 echo "[deploy] active=$ACTIVE target=$TARGET"
 
+# 0. Verify image signature (if cosign is available and the image is from GHCR).
+APP_IMAGE="${APP_IMAGE:-}"
+if command -v cosign >/dev/null 2>&1 && echo "$APP_IMAGE" | grep -q "ghcr.io"; then
+  echo "[deploy] verifying cosign signature on $APP_IMAGE"
+  if cosign verify \
+    --certificate-identity-regexp \
+    "https://github.com/${GH_REPO:-Abolfazlrwm/stacksmith}/.github/.+" \
+    --certificate-oidc-issuer \
+    "https://token.actions.githubusercontent.com" \
+    "$APP_IMAGE"; then
+    echo "[deploy] signature verified"
+  else
+    echo "[deploy] ERROR: cosign verification failed — refusing to deploy"
+    exit 1
+  fi
+else
+  echo "[deploy] cosign not available or image is local — skipping verify"
+fi
+
 # 1. Start the target app instance.
 echo "[deploy] starting app-$TARGET"
 docker compose -f "$COMPOSE_FILE" up -d --wait --no-deps "app-$TARGET"
