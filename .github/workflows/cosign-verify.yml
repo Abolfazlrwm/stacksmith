@@ -44,7 +44,7 @@ jobs:
         run: |
           IMG="${{ steps.image.outputs.name }}"
           echo "Verifying signature on $IMG:latest"
-          cosign verify --yes \
+          cosign verify \
             --certificate-identity-regexp \
             "https://github.com/${{ github.repository }}/.github/.+" \
             --certificate-oidc-issuer \
@@ -56,7 +56,7 @@ jobs:
         run: |
           IMG="${{ steps.image.outputs.name }}"
           echo "Verifying SBOM attestation on $IMG:latest"
-          cosign verify-attestation --yes \
+          cosign verify-attestation \
             --certificate-identity-regexp \
             "https://github.com/${{ github.repository }}/.github/.+" \
             --certificate-oidc-issuer \

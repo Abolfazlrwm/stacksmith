@@ -4,67 +4,21 @@ What works today is proven in CI. What does not is listed here, honestly.
 
 ## Not implemented
 
-- **TLS is a template.** ~~The `:443` server block in `nginx/default.conf`
-  is commented out. To enable HTTPS, obtain a cert, place it in
-  `nginx/certs/`, uncomment the block, and reload nginx. There is no
-  automated cert renewal pipeline.~~ Closed by ADR-0010 (see "Recently
-  closed" below).
-- **No log aggregation.** Logs are json-file on each container, read with
-  `docker compose logs`. ~~There is no Loki, Elasticsearch, or equivalent.
-  ADR-0004 explains why; Loki is on the v0.2 roadmap.~~ Closed by
-  ADR-0009 (see "Recently closed" below).
-- **No canary checks post-switch.** `deploy.sh` switches 100% of traffic
-  to the new color immediately. ~~There is no 1%-then-10%-then-100% ramp.
-  Canary checks are on the v0.2 roadmap.~~ Closed by ADR-0008 (see
-  "Recently closed" below).
-- **No off-host encryption.** `sync-backups.sh` copies dumps over rsync
-  as-is. ~~The dumps are not encrypted at rest on the off-host. Off-host
-  encryption with `age` is on the v0.2 roadmap.~~ Closed by ADR-0007
-  (see "Recently closed" below).
 - **Single host.** Everything runs on one VPS. There is no HA, no
   multi-host failover, no horizontal scaling. ADR-0001 documents this as
-  a deliberate choice.
-- **No automated secret rotation.** Secret rotation is a manual procedure
-  documented in ADR-0005. There is no cron job or operator that rotates
-  keys on a schedule.
-- **Grafana is not exposed through nginx.** Grafana listens on port 3000
-  directly. In production, it should be behind nginx with auth; for now,
-  restrict it with a firewall.
-
-## Recently closed
-
-- **Automated TLS** (closed 2026-11-14, ADR-0010). `docker-compose.tls.yml`
-  runs certbot in a renewal loop (every 12h). `scripts/issue-cert.sh`
-  obtains the first Let's Encrypt cert via the ACME HTTP-01 challenge.
-  The `:443` server block in `nginx/default.conf` is now real, not a
-  template. certbot's `--deploy-hook` reloads nginx after each successful
-  renewal.
-- **Log aggregation** (closed 2026-11-13, ADR-0009). Loki and promtail
-  are now part of the monitoring overlay. promtail scrapes docker
-  container logs via the socket, parses the JSON lines Django emits,
-  and ships them to Loki. Loki stores 14 days of logs. Grafana gains a
-  Loki datasource and a "container logs" dashboard with service and
-  level template variables. Metrics stay primary (ADR-0004); logs are
-  the secondary signal, queryable from the same dashboard.
-- **Canary checks post-switch** (closed 2026-11-12, ADR-0008).
-  `deploy.sh` now runs `CANARY_PROBES` (default 5) health probes through
-  nginx after switching the upstream. If any probe fails, the upstream
-  is rolled back to the old color automatically. The
-  `canary failure → auto-rollback` CI job proves the rollback path by
-  breaking app-green and confirming deploy.sh catches it.
-- **Off-host encryption** (closed 2026-11-11, ADR-0007). Backups are
-  encrypted with `age` before leaving the host. `encrypt-backups.sh`
-  produces `.age` files using the public key in `.env`;
-  `sync-backups.sh` ships only `.age` files; `restore-db.sh` decrypts
-  `.age` files using the private key. The encryption-drill workflow
-  proves the full cycle: encrypt, drop, restore from encrypted, verify.
-- **Backup freshness metric** (closed 2026-11-10, ADR-0006).
-  `backup-db.sh` now writes `monitoring/textfile/backup.prom` with three
-  gauges (`backup_last_success_timestamp_seconds`,
-  `backup_last_success_bytes`, `backup_last_status`). The `BackupStale`
-  and `BackupFailed` alerts evaluate against these gauges. The
-  restore-drill workflow verifies the metric file is written and the
-  gauges are non-zero.
+  a deliberate choice; ADR-0015 documents what multi-host would require.
+- **No automated secret rotation schedule.** `scripts/rotate-secrets.sh`
+  exists and is tested in CI (ADR-0013), but scheduling it (e.g.
+  quarterly via cron) is a manual operator decision.
+- **cosign verify at deploy time.** The cosign signature is verified in
+  CI (ADR-0023), but `deploy.sh` does not call `cosign verify` before
+  switching the upstream. A deploy-time verify is on the v0.7 roadmap.
+- **Business-endpoint load tests.** The k6 load test covers
+  `/health/live/` only. Testing the real docubot API (RAG queries,
+  streaming) requires the docubot app, which is not part of this kit.
+- **Terraform is provider-specific.** The module ships for Hetzner Cloud
+  only. Swapping to DigitalOcean or AWS requires changing the provider
+  block (ADR-0021).
 
 ## Tested but not in production
 
@@ -74,19 +28,21 @@ What works today is proven in CI. What does not is listed here, honestly.
 - The blue-green deploy is tested in CI with a health probe. It has not
   been tested under real traffic with long-lived connections (websockets,
   streaming uploads). The `GRACE_PERIOD` may need tuning.
+- The disaster recovery drill destroys and rebuilds the stack on a CI
+  runner. A real VPS loss may differ (DNS propagation, SSH access, cloud
+  provider quirks).
 
-## Roadmap to v0.2
+## Recently closed
 
-See issue [#12](https://github.com/Abolfazlrwm/stacksmith/issues/12) for
-the planned work. Items still open:
-
-- Off-host encryption with `age`.
-- Canary checks post-switch.
-- Loki as a secondary observability signal.
-- Automated cert renewal.
-- Grafana behind nginx with auth.
-
-Items closed:
-
-- `backup.prom` textfile metric written by `backup-db.sh` — closed by
-  ADR-0006.
+- **Disaster recovery** (closed 2026-12-02, ADR-0024). Total VPS loss
+  simulation: destroy everything, restore from encrypted backup, verify
+  data values and app health.
+- **cosign verify gate** (closed 2026-12-01, ADR-0023). CI workflow
+  verifies image signature and SBOM attestation on every push and daily.
+- **Automated TLS** (closed 2026-11-14, ADR-0010). certbot renewal loop.
+- **Log aggregation** (closed 2026-11-13, ADR-0009). Loki + promtail.
+- **Canary checks** (closed 2026-11-12, ADR-0008). Post-switch probes
+  with auto-rollback.
+- **Off-host encryption** (closed 2026-11-11, ADR-0007). age encryption.
+- **Backup freshness metric** (closed 2026-11-10, ADR-0006). textfile
+  metric + BackupStale/BackupFailed alerts.

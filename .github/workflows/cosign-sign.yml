@@ -68,7 +68,7 @@ jobs:
           IMG="${{ steps.image.outputs.name }}"
           DIGEST=$(docker buildx imagetools inspect "$IMG:latest" \
             --format '{{json .Manifest.Digest}}' | tr -d '"')
-          cosign verify --yes \
+          cosign verify \
             --certificate-identity-regexp \
             "https://github.com/${{ github.repository }}/.github/.+" \
             --certificate-oidc-issuer \
