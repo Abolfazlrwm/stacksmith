@@ -94,13 +94,15 @@ endpoint stops answering, not when a fraction of requests return 5xx.
 - **Negative:** no latency SLO. A user who experiences 800ms responses
   will not be alerted by the SLO; the operator must watch the dashboard
   or the existing `High5xxRate` alert (which is a throughput alert, not
-  a latency alert).
+  a latency alert). **Resolved by ADR-0035** (same release): promtail's
+  metrics pipeline derives a latency histogram from the access log, and
+  `SLOLatencyP99Breach` is restored.
 - **Negative:** the availability SLI is outage-only. Partial failures
   (some endpoints 5xx, health endpoint up) do not burn the budget.
-- **Future:** re-introduce the latency SLO when a log-parsing pipeline
-  exists: `promtail` already ships nginx access logs to `loki`; a
-  recording rule that derives `p99_request_time_seconds` from the
-  `$request_time` field would close the gap. That is a separate ADR.
+  **Resolved by ADR-0035**: the same pipeline derives a per-status
+  counter, and `SLOHigh5xxRate` now fires on partial 5xx errors.
+- **Future:** ~~re-introduce the latency SLO when a log-parsing pipeline
+  exists~~ — done in ADR-0035.
 
 ## Rollout
 

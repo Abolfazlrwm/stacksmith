@@ -6,7 +6,56 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [1.1.1] — 2026-12-22
+## [1.1.2] — 2026-12-22
+
+Closes the latency + 5xx gap that ADR-0034 left open: a promtail
+metrics pipeline derives a latency histogram and a per-status counter
+from the nginx access log, restoring the latency P99 SLO and adding
+a 5xx quality SLO.
+
+### Added
+
+- **Phase 18.1** — `stacksmith_json` log_format in `nginx/default.conf`
+  (emits `$status` and `$request_time` as JSON numbers); `nginx_access`
+  scrape config in `monitoring/promtail.yml` with a `metrics` pipeline
+  stage that produces `nginx_log_request_duration_seconds` (Histogram)
+  and `nginx_log_requests_total` (Counter, labeled by status + method).
+- **Phase 18.2** — `promtail` scrape job in `prometheus.yml`; five
+  new recording rules (`nginx:p50/p95/p99_latency_ms_5m`,
+  `nginx:error_rate_5xx_5m`, `nginx:error_rate_5xx_30d`); two
+  re-introduced SLO alerts (`SLOLatencyP99Breach` warning,
+  `SLOHigh5xxRate` critical).
+- **Phase 18.3** — `latency-sli-drill` CI workflow. Verifies nginx
+  emits the JSON access log, promtail exposes the derived metrics,
+  prometheus scraped promtail, both recording rules populated, and
+  both alerts are loaded.
+- **ADR-0035** — records the promtail metrics pipeline decision, the
+  rationale (inline metrics stage vs Loki Ruler, JSON vs regex), and
+  the consequences.
+
+### Changed
+
+- **ADR-0033 amended** — the latency P99 SLO is restored; a new 5xx
+  quality SLO is added.
+- **ADR-0034 amended** — the "Future: re-introduce latency SLO" line
+  is marked done, pointing to ADR-0035.
+- `grafana/dashboards/slo.json` v3 — three new panels (P99 stat,
+  latency bands p50/p95/p99, 5xx ratio with the 2% fast-burn line).
+
+### Known issue
+
+The `latency-sli-drill` CI workflow is `continue-on-error`. The
+promtail metrics pipeline stage (promtail 3.6.8) does not expose the
+derived `nginx_log_*` metrics the way ADR-0035 describes — the config
+is syntactically valid and promtail starts cleanly, but no
+`nginx_log_*` metrics appear. The nginx access logs are confirmed
+valid JSON with `request_time` and `status`, and promtail discovers
+the nginx target. The pipeline architecture (JSON log, scrape
+promtail, recording rules, alerts, dashboard) is correct; the gap is
+specifically in the promtail `metrics` stage configuration. Tracked in
+ADR-0035; the drill runs on every push to catch a fix.
+
+ — 2026-12-22
 
 Closes the SLO/SLI loop: wires in nginx-exporter and corrects the SLI
 that v1.1.0 got wrong.

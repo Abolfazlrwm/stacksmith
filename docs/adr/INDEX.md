@@ -54,6 +54,7 @@ ADR-NNNN: <title>
 | 0032   | [Enforce Conventional Commits](0032-enforce-conventional-commits.md) | accepted  | 2026-12-16 |
 | 0033   | [SLO, SLI, and error budget](0033-slo-sli-error-budget.md) | accepted  | 2026-12-18 |
 | 0034   | [nginx exporter and the OSS latency gap](0034-nginx-exporter-and-oss-latency-gap.md) | accepted | 2026-12-22 |
+| 0035   | [latency and 5xx SLI from promtail metrics pipeline](0035-latency-sli-from-promtail-metrics.md) | accepted | 2026-12-22 |
 
 ## By theme
 

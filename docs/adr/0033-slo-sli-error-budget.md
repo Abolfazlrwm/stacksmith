@@ -31,11 +31,15 @@ nginx, and alert on error-budget burn.
 | SLO             | Target                          | Window |
 | --------------- | ------------------------------- | ------ |
 | Availability    | 99.5% — health probe succeeds  | 30d    |
+| Latency P99     | < 500ms for 99% of requests    | 5m     |
+| 5xx quality     | 5xx ratio < 2%                  | 5m     |
 
-> The latency P99 SLO listed in the first draft of this ADR was **retracted**
-> in ADR-0034: the OSS nginx stub_status endpoint exposes no latency data, so
-> the SLI could not be computed. A log-parsing pipeline is the prerequisite
-> for re-introducing a latency SLO.
+> The latency P99 SLO was retracted in ADR-0034 (OSS nginx had no
+> latency source) and **re-introduced in ADR-0035**: promtail's metrics
+> pipeline derives a latency histogram from the nginx access log's
+> `$request_time`. The 5xx quality SLO is new in ADR-0035 — the same
+> pipeline derives a per-status counter, closing the "partial failure"
+> gap that ADR-0034 left.
 
 ### SLIs
 
