@@ -77,6 +77,7 @@ works. The only change is the connection string.
 
 Prometheus, Grafana, Loki, Tempo, Alertmanager all run on the VPS. For
 multi-host, they would either:
+
 - Stay on one host and scrape the other host's exporters (via
   federation or remote_write).
 - Move to a dedicated observability host.
