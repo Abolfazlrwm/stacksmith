@@ -14,7 +14,8 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
+  pull-requests: write
+  statuses: write
 
 jobs:
   pr-title:
@@ -60,15 +61,15 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install commitlint
+      - name: Install commitlint deps
         run: |
           cd commitlint
-          npm ci --no-fund --no-audit 2>&1 | tail -3 || npm install --no-fund --no-audit
+          # No package-lock.json checked in (intentional — the main repo
+          # stays Python+Shell), so use npm install, not npm ci.
+          npm install --no-fund --no-audit
 
       - name: Lint commit messages on this branch
         run: |
-          cd commitlint
-          # Compare against the merge-base so only new commits are checked.
           BASE="${{ github.event.pull_request.base.sha }}"
           HEAD="${{ github.event.pull_request.head.sha }}"
-          npx commitlint --from="$BASE" --to="$HEAD" --verbose
+          (cd commitlint && npx commitlint --from="$BASE" --to="$HEAD" --verbose)
