@@ -1,0 +1,14 @@
+{
+  "name": "stacksmith-commitlint",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Commit message linting config for stacksmith. Enforces Conventional Commits.",
+  "scripts": {
+    "commitlint": "commitlint --from=HEAD~1 --to=HEAD",
+    "commitlint:all": "commitlint --from=v1.0.0 --to=HEAD"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.6.0",
+    "@commitlint/config-conventional": "^19.6.0"
+  }
+}
