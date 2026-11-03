@@ -1,0 +1,25 @@
+# Python (stub app used by CI drills)
+__pycache__/
+*.py[cod]
+.venv/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Runtime state and artifacts
+backups/
+deploy/releases/
+deploy/state/
+nginx/certs/
+monitoring/textfile/
+
+# Logs
+*.log
+celerybeat-schedule*
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
