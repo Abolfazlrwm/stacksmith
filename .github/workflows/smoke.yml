@@ -1,0 +1,36 @@
+---
+name: smoke
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: stub stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bring up the stub stack
+        run: docker compose -f tests/smoke/docker-compose.yml up -d --wait
+      - name: Probe /health
+        run: |
+          ok=""
+          for i in $(seq 1 15); do
+            if [ "$(curl -fsS http://127.0.0.1:8080/health)" = "ok" ]; then
+              ok=1
+              break
+            fi
+            sleep 2
+          done
+          if [ -z "$ok" ]; then
+            echo "health probe never returned ok"
+            docker compose -f tests/smoke/docker-compose.yml logs
+            exit 1
+          fi
+          echo "health probe: ok"
