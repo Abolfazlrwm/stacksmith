@@ -1,0 +1,44 @@
+---
+name: lint
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  yamllint:
+    name: yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install yamllint
+        run: pip install yamllint==1.38.0
+      - name: Lint all YAML
+        run: yamllint .
+
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shellcheck every script
+        run: |
+          status=0
+          for f in scripts/*.sh; do
+            [ -e "$f" ] || continue
+            echo ":: shellcheck $f"
+            shellcheck -x "$f" || status=1
+          done
+          exit "$status"
+
+  compose-config:
+    name: compose config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate compose files
+        run: docker compose -f tests/smoke/docker-compose.yml config -q
