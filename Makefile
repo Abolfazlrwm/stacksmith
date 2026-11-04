@@ -9,6 +9,7 @@ help: ## list available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
 
 up: ## bring the stack up and wait for every service
+	bash scripts/check-env.sh
 	$(COMPOSE) up -d --wait
 
 down: ## stop and remove the stack
