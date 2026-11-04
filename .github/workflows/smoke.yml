@@ -27,6 +27,9 @@ jobs:
       - name: Build the stub app image
         run: docker build -t stacksmith-stub:ci tests/stub-app
 
+      - name: Generate dev certificates
+        run: make certs
+
       - name: Bring up the production stack
         run: |
           docker compose \
