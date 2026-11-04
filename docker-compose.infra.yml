@@ -7,6 +7,26 @@
 services:
   postgres:
     image: pgvector/pgvector:pg17
+    # Tuned for a small dedicated VPS (8 GB class): modest shared buffers,
+    # headroom for app + worker + drills. These flags are the whole config;
+    # no custom postgres.conf to drift.
+    shm_size: 256mb
+    command:
+      - postgres
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - max_connections=120
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=128MB
+      - -c
+      - effective_cache_size=1GB
+      - -c
+      - wal_compression=on
+      - -c
+      - checkpoint_completion_target=0.9
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-docubot}
       POSTGRES_USER: ${POSTGRES_USER:-docubot}
@@ -20,8 +40,18 @@ services:
     image: redis:7-alpine
     # noeviction on purpose: this is a celery broker, dropping keys to stay
     # under the limit would silently lose tasks. If the limit is hit, that
-    # is an incident, not a cache miss.
-    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
+    # is an incident, not a cache miss. AOF on: the broker survives a
+    # container restart without losing queued tasks.
+    command:
+      - redis-server
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - noeviction
+      - --appendonly
+      - "yes"
+    volumes:
+      - redisdata:/data
     networks:
       - backend
 
@@ -37,6 +67,9 @@ services:
 
 volumes:
   pgdata:
+    name: stacksmith_pgdata
+  redisdata:
+    name: stacksmith_redisdata
 
 networks:
   backend:
