@@ -10,10 +10,10 @@ permissions:
   contents: read
 
 jobs:
-  smoke:
+  stub:
     name: stub stack
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - name: Bring up the stub stack
@@ -34,3 +34,60 @@ jobs:
             exit 1
           fi
           echo "health probe: ok"
+
+  prod:
+    name: prod stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write CI .env
+        run: |
+          cp .env.example .env
+          # CI overrides
+          sed -i 's/DJANGO_SECRET_KEY=.*/DJANGO_SECRET_KEY=ci-test-secret-key-not-for-production-0123456789/' .env
+          sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci-test-password/' .env
+          sed -i 's/DJANGO_ALLOWED_HOSTS=.*/DJANGO_ALLOWED_HOSTS=*/' .env
+          sed -i 's/NGINX_HTTP_PORT=.*/NGINX_HTTP_PORT=8080/' .env
+          sed -i 's/NGINX_HTTPS_PORT=.*/NGINX_HTTPS_PORT=8443/' .env
+
+      - name: Bring up the prod stack
+        run: docker compose -f docker-compose.prod.yml up -d --build --wait
+
+      - name: Probe /health/live/ through nginx
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/health/live/ | grep -q '"alive"'; then
+              echo "live probe: ok"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "live probe failed"
+          docker compose -f docker-compose.prod.yml logs --no-color || true
+          exit 1
+
+      - name: Probe /health/ready/ through nginx
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            body="$(curl -s http://127.0.0.1:8080/health/ready/ || true)"
+            if echo "$body" | grep -q '"ready"'; then
+              echo "ready probe: ok ($body)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "ready probe failed"
+          docker compose -f docker-compose.prod.yml logs --no-color || true
+          exit 1
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.prod.yml logs --no-color || true
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down --remove-orphans -v

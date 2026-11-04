@@ -1,0 +1,52 @@
+# Production compose stack for the docubot backend — Phase 1, commit 1.
+# Basic services; healthchecks, logging and pgvector land in later commits.
+---
+services:
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    image: stacksmith/app:latest
+    env_file: .env
+    command: /app/entrypoint.sh
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    image: stacksmith/app:latest
+    env_file: .env
+    command: celery -A config worker -l info --concurrency 2
+    restart: unless-stopped
+
+  beat:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    image: stacksmith/app:latest
+    env_file: .env
+    command: celery -A config beat -l info
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --save ""
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "${NGINX_HTTP_PORT:-8080}:80"
+    volumes:
+      - ./nginx:/etc/nginx/conf.d:ro
+    restart: unless-stopped
