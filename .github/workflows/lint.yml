@@ -38,7 +38,15 @@ jobs:
   compose-config:
     name: compose config
     runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-not-a-secret
+      POSTGRES_PASSWORD: ci-not-a-secret
     steps:
       - uses: actions/checkout@v4
       - name: Validate compose files
-        run: docker compose -f tests/smoke/docker-compose.yml config -q
+        run: |
+          docker compose \
+            -f docker-compose.infra.yml \
+            -f docker-compose.prod.yml \
+            -f docker-compose.override.yml \
+            config -q

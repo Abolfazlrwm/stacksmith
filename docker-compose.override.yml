@@ -1,0 +1,16 @@
+---
+# Local development overrides. Loaded together with the infra and prod files:
+#
+#   docker compose -f docker-compose.infra.yml -f docker-compose.prod.yml \
+#     -f docker-compose.override.yml up -d --wait
+#
+# or simply `make up`. Not used by deploys: deploy.sh loads infra + prod only.
+
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"

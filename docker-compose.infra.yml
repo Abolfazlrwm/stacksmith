@@ -1,0 +1,43 @@
+---
+# Long-lived tier: edge (nginx) + data (postgres, redis). These run outside
+# the blue/green app slots so a release never restarts them - see ADR-0002
+# (lands with phase 2). The fixed network name is what lets the app-tier
+# slots join the same networks.
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-docubot}
+      POSTGRES_USER: ${POSTGRES_USER:-docubot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    # noeviction on purpose: this is a celery broker, dropping keys to stay
+    # under the limit would silently lose tasks. If the limit is hit, that
+    # is an incident, not a cache miss.
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
+    networks:
+      - backend
+
+  nginx:
+    image: nginx:stable-alpine
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/upstreams.conf:/etc/nginx/upstreams.conf:ro
+    networks:
+      - backend
+
+volumes:
+  pgdata:
+
+networks:
+  backend:
+    name: stacksmith_backend

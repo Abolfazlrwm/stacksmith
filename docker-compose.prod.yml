@@ -1,0 +1,43 @@
+---
+# App tier: one release slot. deploy.sh sets the compose project name
+# (stacksmith-blue / stacksmith-green) and APP_SLOT, which is what the nginx
+# upstream points at. In single-project mode (make up) the slot name is just
+# "blue" and everything runs as one stack.
+
+x-app-env: &app-env
+  SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+  POSTGRES_DB: ${POSTGRES_DB:-docubot}
+  POSTGRES_USER: ${POSTGRES_USER:-docubot}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+  CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
+  CELERY_APP: ${CELERY_APP:-config}
+
+services:
+  app:
+    image: ${DOCUBOT_IMAGE:-ghcr.io/abolfazlrwm/docubot:latest}
+    environment: *app-env
+    networks:
+      backend:
+        aliases:
+          - docubot-app-${APP_SLOT:-blue}
+
+  worker:
+    image: ${DOCUBOT_IMAGE:-ghcr.io/abolfazlrwm/docubot:latest}
+    command: sh -c 'celery -A "$${CELERY_APP:-config}" worker -l info --concurrency=2'
+    environment: *app-env
+    networks:
+      - backend
+
+  beat:
+    image: ${DOCUBOT_IMAGE:-ghcr.io/abolfazlrwm/docubot:latest}
+    command: sh -c 'celery -A "$${CELERY_APP:-config}" beat -l info --schedule /tmp/celerybeat-schedule'
+    environment: *app-env
+    networks:
+      - backend
+
+networks:
+  backend:
+    name: stacksmith_backend
