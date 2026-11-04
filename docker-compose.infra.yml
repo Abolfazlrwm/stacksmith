@@ -31,6 +31,12 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-docubot}
       POSTGRES_USER: ${POSTGRES_USER:-docubot}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-docubot} -d $${POSTGRES_DB:-docubot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
@@ -52,6 +58,11 @@ services:
       - "yes"
     volumes:
       - redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
     networks:
       - backend
 
@@ -64,6 +75,12 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./nginx/upstreams.conf:/etc/nginx/upstreams.conf:ro
       - ./nginx/certs:/etc/nginx/certs:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/nginx-health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 5s
     networks:
       - backend
 

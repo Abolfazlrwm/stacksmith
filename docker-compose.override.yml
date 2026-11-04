@@ -7,6 +7,27 @@
 # or simply `make up`. Not used by deploys: deploy.sh loads infra + prod only.
 
 services:
+  app:
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  beat:
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   postgres:
     ports:
       - "127.0.0.1:5432:5432"
