@@ -41,4 +41,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate compose files
-        run: docker compose -f tests/smoke/docker-compose.yml config -q
+        run: |
+          set -euo pipefail
+          for f in tests/smoke/docker-compose.yml docker-compose.prod.yml; do
+            [ -f "$f" ] || continue
+            echo ":: validating $f"
+            docker compose -f "$f" config -q
+          done
