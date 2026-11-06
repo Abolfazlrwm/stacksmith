@@ -1,0 +1,76 @@
+---
+name: restore-drill
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  restore-drill:
+    name: backup → wipe → restore → verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write CI .env
+        run: |
+          cp .env.example .env
+          sed -i 's/DJANGO_SECRET_KEY=.*/DJANGO_SECRET_KEY=ci-test-secret-key-not-for-production-0123456789/' .env
+          sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci-test-password/' .env
+          sed -i 's/DJANGO_ALLOWED_HOSTS=.*/DJANGO_ALLOWED_HOSTS=*/' .env
+          sed -i 's/NGINX_HTTP_PORT=.*/NGINX_HTTP_PORT=8082/' .env
+
+      - name: Bring up the stack
+        run: docker compose -f docker-compose.prod.yml up -d --build --wait
+
+      - name: Seed a test row
+        run: |
+          docker compose -f docker-compose.prod.yml exec -T postgres \
+            psql -U docubot -d docubot -c \
+            "CREATE TABLE IF NOT EXISTS _drill_marker (id int, note text);"
+          docker compose -f docker-compose.prod.yml exec -T postgres \
+            psql -U docubot -d docubot -c \
+            "INSERT INTO _drill_marker VALUES (1, 'pre-backup');"
+
+      - name: Take a backup
+        run: bash scripts/backup-db.sh
+
+      - name: Wipe the test row
+        run: |
+          docker compose -f docker-compose.prod.yml exec -T postgres \
+            psql -U docubot -d docubot -c "DROP TABLE _drill_marker;"
+
+      - name: Verify the row is gone
+        run: |
+          ! docker compose -f docker-compose.prod.yml exec -T postgres \
+            psql -U docubot -d docubot -c "SELECT count(*) FROM _drill_marker;" 2>/dev/null
+
+      - name: Restore from the backup
+        run: |
+          BACKUP_FILE="$(ls -1t backups/docubot-*.sql.gz | head -1)"
+          echo "restoring from $BACKUP_FILE"
+          bash scripts/restore-db.sh "$BACKUP_FILE" --yes
+
+      - name: Verify the row is back
+        run: |
+          count=$(docker compose -f docker-compose.prod.yml exec -T postgres \
+            psql -U docubot -d docubot -tAc "SELECT count(*) FROM _drill_marker;")
+          echo "row count after restore: $count"
+          if [ "$count" != "1" ]; then
+            echo "restore verification FAILED — expected 1 row, got $count"
+            exit 1
+          fi
+          echo "restore verification OK"
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.prod.yml logs --no-color || true
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down --remove-orphans -v
