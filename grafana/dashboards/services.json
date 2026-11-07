@@ -1,0 +1,63 @@
+{
+  "title": "Stacksmith — service golden signals",
+  "uid": "stacksmith-services",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "time": {"from": "now-1h", "to": "now"},
+  "tags": ["stacksmith"],
+  "templating": {"list": []},
+  "panels": [
+    {
+      "id": 1,
+      "title": "Health probe (blackbox → /health/live/)",
+      "type": "stat",
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "targets": [{"expr": "probe_success{job=\"blackbox\"}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"mappings": [{"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}}]}}
+    },
+    {
+      "id": 2,
+      "title": "Container restarts (5m)",
+      "type": "stat",
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "targets": [{"expr": "sum(increase(container_restart_count[5m]))", "refId": "A"}]
+    },
+    {
+      "id": 3,
+      "title": "Disk usage %",
+      "type": "gauge",
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "targets": [{"expr": "100 - (node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"} * 100)", "refId": "A"}],
+      "fieldConfig": {"defaults": {"max": 100, "thresholds": {"steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 70}, {"color": "red", "value": 85}]}}}
+    },
+    {
+      "id": 4,
+      "title": "Memory usage %",
+      "type": "gauge",
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+      "targets": [{"expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100", "refId": "A"}],
+      "fieldConfig": {"defaults": {"max": 100, "thresholds": {"steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 75}, {"color": "red", "value": 90}]}}}
+    },
+    {
+      "id": 5,
+      "title": "CPU usage per container",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+      "targets": [{"expr": "rate(container_cpu_usage_seconds_total{name!=\"\"}[1m])", "refId": "A", "legendFormat": "{{name}}"}]
+    },
+    {
+      "id": 6,
+      "title": "Memory per container",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+      "targets": [{"expr": "container_memory_usage_bytes{name!=\"\"}", "refId": "A", "legendFormat": "{{name}}"}]
+    }
+  ]
+}
