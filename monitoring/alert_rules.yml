@@ -1,0 +1,66 @@
+---
+# Alert rules for the docubot stack.
+groups:
+  - name: stacksmith-backup
+    rules:
+      - alert: BackupStale
+        expr: time() - (node_textfile_mtime_seconds{file="backup.prom"} or vector(0)) > 93600
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database backup is stale"
+          description: "No backup in over 26 hours. Check the stacksmith-backup timer."
+
+  - name: stacksmith-saturation
+    rules:
+      - alert: HostDiskFull
+        expr: >-
+          100 - (
+            node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+            / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+            * 100
+          ) > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host disk > 85% full"
+          description: "Root filesystem on {{ $labels.instance }} is above 85% for 10m."
+
+      - alert: HostMemoryFull
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host memory > 90% used"
+
+  - name: stacksmith-restarts
+    rules:
+      - alert: ContainerRestartStorm
+        expr: increase(container_restart_count{name!=""}[5m]) > 3
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} restarted more than 3 times in 5m"
+
+  - name: stacksmith-availability
+    rules:
+      - alert: AppHealthProbeFailing
+        expr: probe_success{job="blackbox"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Health probe failing"
+          description: "The blackbox probe to /health/live/ has been failing for 2m."
+
+      - alert: High5xxRate
+        expr: rate(nginx_http_requests_total{status=~"5.."}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High 5xx rate through nginx"
+          description: "More than 0.1 req/s of 5xx responses for 5m."
