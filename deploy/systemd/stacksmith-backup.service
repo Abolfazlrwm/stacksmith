@@ -1,0 +1,11 @@
+[Unit]
+Description=stacksmith database backup service
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/stacksmith
+ExecStart=/bin/bash scripts/backup-db.sh
+Environment=POSTGRES_USER=docubot
+Environment=POSTGRES_DB=docubot
