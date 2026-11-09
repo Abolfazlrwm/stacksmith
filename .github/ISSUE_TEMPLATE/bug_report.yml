@@ -1,0 +1,50 @@
+---
+name: Bug report
+description: Something is broken — tell us what, where and how to reproduce it.
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Include the exact command output or a screenshot.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. cp .env.example .env
+        2. make up
+        3. make deploy
+        4. See error
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Compose stack (app / worker / beat / postgres / redis)
+        - nginx / TLS
+        - Deploy / rollback (scripts/deploy.sh, rollback.sh)
+        - Backup / restore (scripts/backup-db.sh, restore-db.sh)
+        - Monitoring (prometheus, grafana, alerts)
+        - CI (lint, smoke, drills)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: '"docker compose logs app worker" output for stack issues.'
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: StackSmith version / commit
+      placeholder: v0.1.0 or main @ abc1234
+    validations:
+      required: true
