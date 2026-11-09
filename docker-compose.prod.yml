@@ -1,5 +1,5 @@
-# Production compose stack for the docubot backend — Phase 1, commit 6.
-# json-file log driver with rotation on every service.
+# Production compose stack for the docubot backend — Phase 2.
+# Blue-green app instances; deploy.sh switches the nginx upstream between them.
 ---
 x-logging: &logdriver
   driver: json-file
@@ -7,27 +7,34 @@ x-logging: &logdriver
     max-size: "10m"
     max-file: "3"
 
+x-app: &appdef
+  build:
+    context: ./app
+    dockerfile: Dockerfile
+  image: stacksmith/app:latest
+  env_file: .env
+  command: /app/entrypoint.sh
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/health/live/ || exit 1"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+    start_period: 30s
+  logging: *logdriver
+
 services:
-  app:
-    build:
-      context: ./app
-      dockerfile: Dockerfile
-    image: stacksmith/app:latest
-    env_file: .env
-    command: /app/entrypoint.sh
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/health/live/ || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    logging: *logdriver
+  app-blue:
+    <<: *appdef
+
+  app-green:
+    <<: *appdef
+    profiles: ["green"]
 
   worker:
     build:
@@ -95,7 +102,7 @@ services:
     volumes:
       - ./nginx:/etc/nginx/conf.d:ro
     depends_on:
-      app:
+      app-blue:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:

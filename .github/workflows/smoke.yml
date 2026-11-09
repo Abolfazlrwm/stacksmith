@@ -45,7 +45,6 @@ jobs:
       - name: Write CI .env
         run: |
           cp .env.example .env
-          # CI overrides
           sed -i 's/DJANGO_SECRET_KEY=.*/DJANGO_SECRET_KEY=ci-test-secret-key-not-for-production-0123456789/' .env
           sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci-test-password/' .env
           sed -i 's/DJANGO_ALLOWED_HOSTS=.*/DJANGO_ALLOWED_HOSTS=*/' .env
@@ -81,6 +80,69 @@ jobs:
             sleep 2
           done
           echo "ready probe failed"
+          docker compose -f docker-compose.prod.yml logs --no-color || true
+          exit 1
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.prod.yml logs --no-color || true
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down --remove-orphans -v
+
+  deploy-drill:
+    name: deploy + rollback drill
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write CI .env
+        run: |
+          cp .env.example .env
+          sed -i 's/DJANGO_SECRET_KEY=.*/DJANGO_SECRET_KEY=ci-test-secret-key-not-for-production-0123456789/' .env
+          sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci-test-password/' .env
+          sed -i 's/DJANGO_ALLOWED_HOSTS=.*/DJANGO_ALLOWED_HOSTS=*/' .env
+          sed -i 's/NGINX_HTTP_PORT=.*/NGINX_HTTP_PORT=8081/' .env
+
+      - name: Bring up the stack (blue)
+        run: docker compose -f docker-compose.prod.yml up -d --build --wait
+
+      - name: Verify blue is serving
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8081/health/live/ | grep -q '"alive"'; then
+              echo "blue is serving"
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Deploy to green
+        run: |
+          GRACE_PERIOD=3 bash scripts/deploy.sh green
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8081/health/live/ | grep -q '"alive"'; then
+              echo "green is serving"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose -f docker-compose.prod.yml logs --no-color || true
+          exit 1
+
+      - name: Roll back to blue
+        run: |
+          GRACE_PERIOD=3 bash scripts/rollback.sh
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8081/health/live/ | grep -q '"alive"'; then
+              echo "blue is serving again"
+              exit 0
+            fi
+            sleep 2
+          done
           docker compose -f docker-compose.prod.yml logs --no-color || true
           exit 1
 
