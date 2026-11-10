@@ -11,11 +11,6 @@ What works today is proven in CI. What does not is listed here, honestly.
 - **No log aggregation.** Logs are json-file on each container, read with
   `docker compose logs`. There is no Loki, Elasticsearch, or equivalent.
   ADR-0004 explains why; Loki is on the v0.2 roadmap.
-- **Backup freshness metric is not written.** The `BackupStale` alert
-  references `node_textfile_mtime_seconds{file="backup.prom"}`, but
-  `backup-db.sh` does not yet write the `backup.prom` textfile. Until it
-  does, the alert evaluates against a stale or missing metric. This is
-  the single biggest gap between claim and reality in this release.
 - **No canary checks post-switch.** `deploy.sh` switches 100% of traffic
   to the new color immediately. There is no 1%-then-10%-then-100% ramp.
   Canary checks are on the v0.2 roadmap.
@@ -32,6 +27,16 @@ What works today is proven in CI. What does not is listed here, honestly.
   directly. In production, it should be behind nginx with auth; for now,
   restrict it with a firewall.
 
+## Recently closed
+
+- **Backup freshness metric** (closed 2026-11-10, ADR-0006).
+  `backup-db.sh` now writes `monitoring/textfile/backup.prom` with three
+  gauges (`backup_last_success_timestamp_seconds`,
+  `backup_last_success_bytes`, `backup_last_status`). The `BackupStale`
+  and `BackupFailed` alerts evaluate against these gauges. The
+  restore-drill workflow verifies the metric file is written and the
+  gauges are non-zero.
+
 ## Tested but not in production
 
 - The backup and restore scripts are tested in CI against a fresh
@@ -43,10 +48,16 @@ What works today is proven in CI. What does not is listed here, honestly.
 
 ## Roadmap to v0.2
 
-See the open issue `Roadmap v0.2` for the planned work, including:
+See issue [#12](https://github.com/Abolfazlrwm/stacksmith/issues/12) for
+the planned work. Items still open:
 
 - Off-host encryption with `age`.
 - Canary checks post-switch.
-- `backup.prom` textfile metric written by `backup-db.sh`.
 - Loki as a secondary observability signal.
 - Automated cert renewal.
+- Grafana behind nginx with auth.
+
+Items closed:
+
+- `backup.prom` textfile metric written by `backup-db.sh` — closed by
+  ADR-0006.

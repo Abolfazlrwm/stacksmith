@@ -14,15 +14,23 @@
       "type": "stat",
       "datasource": {"type": "prometheus", "uid": "Prometheus"},
       "gridPos": {"h": 6, "w": 8, "x": 0, "y": 0},
-      "targets": [{"expr": "(time() - node_textfile_mtime_seconds{file=\"backup.prom\"}) / 3600", "refId": "A"}],
+      "targets": [{"expr": "(time() - backup_last_success_timestamp_seconds) / 3600", "refId": "A"}],
       "fieldConfig": {"defaults": {"thresholds": {"steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 25}, {"color": "red", "value": 26}]}}}
     },
     {
       "id": 2,
-      "title": "Container count",
+      "title": "Last backup size (MB)",
       "type": "stat",
       "datasource": {"type": "prometheus", "uid": "Prometheus"},
       "gridPos": {"h": 6, "w": 8, "x": 8, "y": 0},
+      "targets": [{"expr": "backup_last_success_bytes / 1024 / 1024", "refId": "A"}]
+    },
+    {
+      "id": 7,
+      "title": "Container count",
+      "type": "stat",
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "gridPos": {"h": 6, "w": 8, "x": 16, "y": 0},
       "targets": [{"expr": "count(container_last_seen{name!=\"\"})", "refId": "A"}]
     },
     {
@@ -30,7 +38,7 @@
       "title": "Uptime (hours)",
       "type": "stat",
       "datasource": {"type": "prometheus", "uid": "Prometheus"},
-      "gridPos": {"h": 6, "w": 8, "x": 16, "y": 0},
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 6},
       "targets": [{"expr": "time() - process_start_time_seconds{job=\"prometheus\"}", "refId": "A"}]
     },
     {
