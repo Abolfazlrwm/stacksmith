@@ -1,0 +1,93 @@
+---
+name: tracing-drill
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tracing-drill:
+    name: tempo ready → trace → query
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write CI .env
+        run: |
+          cp .env.example .env
+          sed -i 's/DJANGO_SECRET_KEY=.*/DJANGO_SECRET_KEY=ci-test-secret-key-not-for-production-0123456789/' .env
+          sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci-test-password/' .env
+          sed -i 's/DJANGO_ALLOWED_HOSTS=.*/DJANGO_ALLOWED_HOSTS=*/' .env
+          sed -i 's/NGINX_HTTP_PORT=.*/NGINX_HTTP_PORT=8089/' .env
+          # Enable tracing — point at Tempo's OTLP/HTTP endpoint.
+          OTEL_URL="http://tempo:4318/v1/traces"
+          sed -i "s|OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=.*|OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=$OTEL_URL|" .env
+
+      - name: Bring up the stack and the monitoring overlay together
+        run: |
+          # Bring up everything (shared network) but don't --wait on the
+          # monitoring services (Loki/Tempo healthchecks are slow/flaky).
+          docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d --build
+          # Wait for the app to be healthy.
+          docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d --wait \
+            app-blue postgres redis nginx
+
+      - name: Wait for Tempo to be ready
+        run: |
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3200/ready 2>/dev/null || echo 000)
+            if [ "$code" = "200" ]; then
+              echo "tempo ready after ${i}s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "tempo did not become ready"
+          docker compose -f docker-compose.monitoring.yml logs tempo
+          exit 1
+
+      - name: Generate a trace (hit the app through nginx)
+        run: |
+          # Multiple requests so the BatchSpanProcessor flushes.
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            curl -fsS http://127.0.0.1:8089/health/live/ | grep -q '"alive"' || true
+            curl -fsS http://127.0.0.1:8089/health/ready/ | grep -q '"ready"' || true
+          done
+          sleep 30
+
+      - name: Check app telemetry logs
+        run: |
+          docker compose -f docker-compose.prod.yml \
+            -f docker-compose.monitoring.yml logs app-blue 2>&1 \
+            | grep -i "telemetry\|otel\|trace" \
+            || echo "no telemetry logs found"
+
+      - name: Query Tempo for traces
+        run: |
+          set -euo pipefail
+          # Query for any trace from the last 5 minutes.
+          resp=$(curl -s "http://127.0.0.1:3200/api/search?q=%7B%7D&limit=10" 2>/dev/null || echo "{}")
+          echo "tempo response: $resp"
+          count=$(echo "$resp" | jq -r '.traces | length' 2>/dev/null || echo 0)
+          if [ "$count" -eq 0 ]; then
+            echo "no traces found — instrumentation may not be exporting"
+            docker compose -f docker-compose.prod.yml logs app-blue 2>&1 | grep -i "otel\|telemetry\|trace" | tail -10
+            exit 1
+          fi
+          echo "tempo ingested $count trace(s)"
+
+      - name: Dump logs on failure
+        if: failure()
+        run: |
+          docker compose -f docker-compose.monitoring.yml logs --no-color || true
+          docker compose -f docker-compose.prod.yml logs --no-color || true
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml down --remove-orphans -v || true
