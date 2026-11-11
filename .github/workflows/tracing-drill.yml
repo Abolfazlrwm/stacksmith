@@ -54,11 +54,18 @@ jobs:
       - name: Generate a trace (hit the app through nginx)
         run: |
           # Multiple requests so the BatchSpanProcessor flushes.
-          for i in 1 2 3 4 5; do
+          for i in 1 2 3 4 5 6 7 8 9 10; do
             curl -fsS http://127.0.0.1:8089/health/live/ | grep -q '"alive"' || true
             curl -fsS http://127.0.0.1:8089/health/ready/ | grep -q '"ready"' || true
           done
-          sleep 5
+          sleep 10
+
+      - name: Check app telemetry logs
+        run: |
+          docker compose -f docker-compose.prod.yml \
+            -f docker-compose.monitoring.yml logs app-blue 2>&1 \
+            | grep -i "telemetry\|otel\|trace" \
+            || echo "no telemetry logs found"
 
       - name: Query Tempo for traces
         run: |

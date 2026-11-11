@@ -18,7 +18,10 @@ def setup_telemetry(service_name: str = "docubot"):
     """
     endpoint = os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "")
     if not endpoint:
+        print("[telemetry] disabled (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT not set)")
         return False  # telemetry disabled
+
+    print(f"[telemetry] enabling, endpoint={endpoint}")
 
     resource = Resource.create({
         "service.name": service_name,
