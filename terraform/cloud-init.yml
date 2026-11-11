@@ -1,0 +1,33 @@
+# cloud-config
+# Installs Docker, docker-compose, and clones stacksmith on first boot.
+---
+package_update: true
+package_upgrade: true
+
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - jq
+  - ufw
+
+runcmd:
+  # Install Docker from the official repo.
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+      | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+  - echo "deb [arch=$(dpkg --print-architecture) \
+      signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] \
+      https://download.docker.com/linux/ubuntu \
+      $(lsb_release -cs) stable" \
+      > /etc/apt/sources.list.d/docker.list
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io \
+      docker-buildx-plugin docker-compose-plugin
+  - systemctl enable --now docker
+  # Clone the repo.
+  - git clone https://github.com/Abolfazlrwm/stacksmith.git /opt/stacksmith
+  # Firewall: allow SSH, HTTP, HTTPS.
+  - ufw allow 22/tcp
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw --force enable

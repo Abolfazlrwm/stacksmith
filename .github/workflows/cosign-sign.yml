@@ -1,0 +1,70 @@
+---
+name: cosign-sign
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/app
+
+jobs:
+  sign:
+    name: cosign sign and attest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sign the image with keyless cosign
+        run: |
+          DIGEST=$(docker buildx imagetools inspect \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            --format '{{json .Manifest.Digest}}' | tr -d '"')
+          echo "Signing digest: $DIGEST"
+          cosign sign --yes \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@$DIGEST
+
+      - name: Generate and attach SBOM attestation
+        run: |
+          DIGEST=$(docker buildx imagetools inspect \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            --format '{{json .Manifest.Digest}}' | tr -d '"')
+          # Generate SBOM with syft, attach as a cosign attestation.
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh \
+            | sh -s -- -b /usr/local/bin
+          syft ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@$DIGEST -o spdx-json > sbom.spdx.json
+          cosign attest --yes --predicate sbom.spdx.json \
+            --type spdxjson \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@$DIGEST
+          echo "SBOM attestation attached"
+
+      - name: Verify the signature
+        run: |
+          DIGEST=$(docker buildx imagetools inspect \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            --format '{{json .Manifest.Digest}}' | tr -d '"')
+          cosign verify --yes \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/.+" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@$DIGEST
+          echo "Signature verified"
