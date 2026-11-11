@@ -48,16 +48,21 @@ logs worker` shows `Killed` or MemoryError.
 Symptom: browsers show a TLS warning; `curl https://...` fails with a cert
 error.
 
-The stack currently terminates TLS at nginx with a template config (see
-`nginx/default.conf`). To enable real TLS:
+The stack ships automated TLS renewal (ADR-0010). certbot runs in a
+renewal loop every 12h and reloads nginx after each successful renewal.
+If the cert still expired, the renewal loop failed.
 
-1. Obtain a cert (e.g. with certbot / Let's Encrypt).
-2. Place `fullchain.pem` and `privkey.pem` in `nginx/certs/`.
-3. Uncomment the `:443` server block in `nginx/default.conf`.
-4. `docker compose -f docker-compose.prod.yml exec nginx nginx -s reload`.
-5. Set a calendar reminder 30 days before expiry. certbot's
-   `--deploy-hook` can automate the reload, but the expiry check is manual
-   until a renewal pipeline is added.
+1. Check if certbot is running:
+   `docker compose -f docker-compose.prod.yml -f docker-compose.tls.yml ps certbot`
+2. Check certbot logs:
+   `docker compose -f docker-compose.prod.yml -f docker-compose.tls.yml logs --tail=50 certbot`
+3. Common cause: the ACME challenge failed (port 80 not reachable, DNS
+   changed, Let's Encrypt rate limit). Fix the underlying issue.
+4. Force a renewal attempt:
+   `docker compose -f docker-compose.prod.yml -f docker-compose.tls.yml exec certbot certbot renew`
+5. If the cert is already expired, re-issue from scratch:
+   `bash scripts/issue-cert.sh <domain> <email>`
+6. Reload nginx: `docker compose exec nginx nginx -s reload`
 
 ## Postgres failure
 
