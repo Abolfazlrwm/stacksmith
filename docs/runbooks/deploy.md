@@ -33,8 +33,13 @@ bash scripts/deploy.sh green
 4. Reloads nginx (`nginx -s reload`) so it picks up the new upstream. nginx
    reload is graceful — in-flight requests finish on the old workers, new
    requests go to the new upstream.
-5. Waits `GRACE_PERIOD` seconds (default 10) for in-flight requests to drain.
-6. Stops the old app instance.
+5. Runs canary checks: `CANARY_PROBES` (default 5) probes at
+   `CANARY_INTERVAL` (default 2s) intervals against `/health/live/` and
+   `/health/ready/` through nginx. If any probe fails, the upstream is
+   rolled back to the old color, nginx is reloaded, and the deploy exits
+   non-zero. The new color is left running (no traffic) for log inspection.
+6. Waits `GRACE_PERIOD` seconds (default 10) for in-flight requests to drain.
+7. Stops the old app instance.
 
 ### What to check
 
@@ -48,6 +53,11 @@ bash scripts/deploy.sh green
 - **The new instance does not become healthy.** `deploy.sh` exits non-zero
   at step 2. The old instance is still running and still serving. The
   upstream has not been switched. Fix the image/config and re-run.
+- **Canary checks fail.** `deploy.sh` rolls the upstream back to the old
+  color and exits non-zero. The new color is still running (no traffic) —
+  inspect its logs (`docker compose logs app-<color>`), fix the issue,
+  stop the bad container (`docker compose stop app-<color>`), and re-run
+  deploy.
 - **nginx reload fails.** The new instance is up but nginx is still routing
   to the old one. Check `docker compose logs nginx`. The upstream file has
   been rewritten; you can either fix nginx and reload manually, or revert

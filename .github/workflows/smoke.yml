@@ -120,9 +120,10 @@ jobs:
           done
           exit 1
 
-      - name: Deploy to green
+      - name: Deploy to green (with canary)
         run: |
-          GRACE_PERIOD=3 bash scripts/deploy.sh green
+          GRACE_PERIOD=3 CANARY_PROBES=3 CANARY_INTERVAL=1 NGINX_PORT=8081 \
+            bash scripts/deploy.sh green
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8081/health/live/ | grep -q '"alive"'; then
               echo "green is serving"
@@ -133,9 +134,17 @@ jobs:
           docker compose -f docker-compose.prod.yml logs --no-color || true
           exit 1
 
-      - name: Roll back to blue
+      - name: Verify green is the active upstream
         run: |
-          GRACE_PERIOD=3 bash scripts/rollback.sh
+          grep -q 'server app-green:8000' nginx/upstreams.conf || {
+            echo "upstream not switched to green"; exit 1
+          }
+          echo "upstream is on green"
+
+      - name: Roll back to blue (with canary)
+        run: |
+          GRACE_PERIOD=3 CANARY_PROBES=3 CANARY_INTERVAL=1 NGINX_PORT=8081 \
+            bash scripts/rollback.sh
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8081/health/live/ | grep -q '"alive"'; then
               echo "blue is serving again"
@@ -145,6 +154,83 @@ jobs:
           done
           docker compose -f docker-compose.prod.yml logs --no-color || true
           exit 1
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.prod.yml logs --no-color || true
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down --remove-orphans -v
+
+  canary-failure-drill:
+    name: canary failure → auto-rollback
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write CI .env
+        run: |
+          cp .env.example .env
+          sed -i 's/DJANGO_SECRET_KEY=.*/DJANGO_SECRET_KEY=ci-test-secret-key-not-for-production-0123456789/' .env
+          sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci-test-password/' .env
+          sed -i 's/DJANGO_ALLOWED_HOSTS=.*/DJANGO_ALLOWED_HOSTS=*/' .env
+          sed -i 's/NGINX_HTTP_PORT=.*/NGINX_HTTP_PORT=8084/' .env
+
+      - name: Bring up the stack (blue)
+        run: docker compose -f docker-compose.prod.yml up -d --build --wait
+
+      - name: Verify blue is serving
+        run: |
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8084/health/live/ | grep -q '"alive"' && exit 0
+            sleep 2
+          done
+          exit 1
+
+      - name: Start app-green, then break readiness so canary fails
+        run: |
+          # Start green so it passes the initial --wait healthcheck.
+          docker compose -f docker-compose.prod.yml --profile green up -d --wait --no-deps app-green
+          # Confirm green is healthy on its own (both live and ready pass).
+          docker compose -f docker-compose.prod.yml exec -T app-green \
+            curl -fsS http://127.0.0.1:8000/health/live/ | grep -q '"alive"'
+          docker compose -f docker-compose.prod.yml exec -T app-green \
+            curl -fsS http://127.0.0.1:8000/health/ready/ | grep -q '"ready"'
+          # Now break readiness: touch the sentinel file so /health/ready/ returns 503.
+          # /health/live/ still returns 200, so deploy.sh's --wait passes,
+          # but the canary probe on /health/ready/ fails → auto-rollback.
+          docker compose -f docker-compose.prod.yml exec -T app-green \
+            touch /tmp/break_ready
+          echo "app-green readiness broken — canary should fail"
+
+      - name: Deploy to green (expected to fail canary and roll back)
+        run: |
+          set +e
+          GRACE_PERIOD=3 CANARY_PROBES=3 CANARY_INTERVAL=1 NGINX_PORT=8084 \
+            bash scripts/deploy.sh green
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "ERROR: deploy.sh succeeded but canary should have failed"
+            exit 1
+          fi
+          echo "deploy.sh exited $rc (expected non-zero) — canary caught the bad release"
+
+      - name: Verify blue is still the active upstream
+        run: |
+          grep -q 'server app-blue:8000' nginx/upstreams.conf || {
+            echo "upstream was not rolled back to blue"; exit 1
+          }
+          echo "upstream is back on blue"
+
+      - name: Verify blue is still serving traffic
+        run: |
+          curl -fsS http://127.0.0.1:8084/health/live/ | grep -q '"alive"' || {
+            echo "blue is not serving after rollback"; exit 1
+          }
+          echo "blue still serving"
 
       - name: Dump logs on failure
         if: failure()

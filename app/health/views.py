@@ -14,6 +14,16 @@ def ready(request):
     """Readiness — dependencies (postgres, redis) respond."""
     checks = {}
 
+    # Sentinel file for canary-failure drills: if /tmp/break_ready exists,
+    # /health/ready/ returns 503 so deploy.sh's canary check fails.
+    # This simulates a bad release that passes liveness but fails readiness.
+    import os
+    if os.path.exists("/tmp/break_ready"):
+        return JsonResponse(
+            {"status": "not_ready", "checks": {"sentinel": "break_ready file present"}},
+            status=503,
+        )
+
     try:
         with connection.cursor() as cur:
             cur.execute("SELECT 1")

@@ -12,8 +12,9 @@ What works today is proven in CI. What does not is listed here, honestly.
   `docker compose logs`. There is no Loki, Elasticsearch, or equivalent.
   ADR-0004 explains why; Loki is on the v0.2 roadmap.
 - **No canary checks post-switch.** `deploy.sh` switches 100% of traffic
-  to the new color immediately. There is no 1%-then-10%-then-100% ramp.
-  Canary checks are on the v0.2 roadmap.
+  to the new color immediately. ~~There is no 1%-then-10%-then-100% ramp.
+  Canary checks are on the v0.2 roadmap.~~ Closed by ADR-0008 (see
+  "Recently closed" below).
 - **No off-host encryption.** `sync-backups.sh` copies dumps over rsync
   as-is. ~~The dumps are not encrypted at rest on the off-host. Off-host
   encryption with `age` is on the v0.2 roadmap.~~ Closed by ADR-0007
@@ -30,6 +31,12 @@ What works today is proven in CI. What does not is listed here, honestly.
 
 ## Recently closed
 
+- **Canary checks post-switch** (closed 2026-11-12, ADR-0008).
+  `deploy.sh` now runs `CANARY_PROBES` (default 5) health probes through
+  nginx after switching the upstream. If any probe fails, the upstream
+  is rolled back to the old color automatically. The
+  `canary failure → auto-rollback` CI job proves the rollback path by
+  breaking app-green and confirming deploy.sh catches it.
 - **Off-host encryption** (closed 2026-11-11, ADR-0007). Backups are
   encrypted with `age` before leaving the host. `encrypt-backups.sh`
   produces `.age` files using the public key in `.env`;
