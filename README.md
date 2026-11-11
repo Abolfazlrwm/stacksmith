@@ -100,6 +100,9 @@ release closes every item from the v0.2 roadmap. What remains:
 - [ADR-0013: secret rotation with zero downtime](docs/adr/0013-secret-rotation-with-zero-downtime.md)
 - [ADR-0014: OpenTelemetry traces to Tempo](docs/adr/0014-opentelemetry-traces-to-tempo.md)
 - [ADR-0015: multi-host readiness](docs/adr/0015-multi-host-readiness.md)
+- [ADR-0016: automated security scanning](docs/adr/0016-automated-security-scanning.md)
+- [ADR-0017: SBOM generation with syft](docs/adr/0017-sbom-generation-with-syft.md)
+- [ADR-0018: load testing with k6](docs/adr/0018-load-testing-with-k6.md)
 
 ## Runbooks
 
