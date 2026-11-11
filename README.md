@@ -95,6 +95,11 @@ release closes every item from the v0.2 roadmap. What remains:
 - [ADR-0008: canary checks post-switch with auto-rollback](docs/adr/0008-canary-checks-post-switch.md)
 - [ADR-0009: Loki as a secondary observability signal](docs/adr/0009-loki-as-secondary-observability.md)
 - [ADR-0010: automated TLS with certbot](docs/adr/0010-automated-tls-with-certbot.md)
+- [ADR-0011: Alertmanager with severity routing](docs/adr/0011-alertmanager-with-severity-routing.md)
+- [ADR-0012: backup integrity verification](docs/adr/0012-backup-integrity-verification.md)
+- [ADR-0013: secret rotation with zero downtime](docs/adr/0013-secret-rotation-with-zero-downtime.md)
+- [ADR-0014: OpenTelemetry traces to Tempo](docs/adr/0014-opentelemetry-traces-to-tempo.md)
+- [ADR-0015: multi-host readiness](docs/adr/0015-multi-host-readiness.md)
 
 ## Runbooks
 
