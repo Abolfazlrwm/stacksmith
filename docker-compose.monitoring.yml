@@ -83,12 +83,6 @@ services:
       - ./monitoring/tempo.yml:/etc/tempo.yml:ro
       - tempo_data:/var/tempo
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3200/ready"]
-      interval: 10s
-      timeout: 5s
-      retries: 15
-      start_period: 60s
 
   grafana:
     image: grafana/grafana:latest
