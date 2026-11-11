@@ -1,0 +1,96 @@
+---
+name: rotation-drill
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rotation-drill:
+    name: rotate key → app still serves → rotate password → app still serves
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write CI .env
+        run: |
+          cp .env.example .env
+          sed -i 's/DJANGO_SECRET_KEY=.*/DJANGO_SECRET_KEY=ci-test-secret-key-not-for-production-0123456789/' .env
+          sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci-test-password/' .env
+          sed -i 's/DJANGO_ALLOWED_HOSTS=.*/DJANGO_ALLOWED_HOSTS=*/' .env
+          sed -i 's/NGINX_HTTP_PORT=.*/NGINX_HTTP_PORT=8088/' .env
+
+      - name: Bring up the stack
+        run: docker compose -f docker-compose.prod.yml up -d --build --wait
+
+      - name: Verify stack is serving
+        run: |
+          curl -fsS http://127.0.0.1:8088/health/live/ | grep -q '"alive"'
+
+      - name: Rotate the Django secret key
+        run: |
+          OLD_KEY=$(grep '^DJANGO_SECRET_KEY=' .env | cut -d= -f2)
+          bash scripts/rotate-secrets.sh --key
+          NEW_KEY=$(grep '^DJANGO_SECRET_KEY=' .env | cut -d= -f2)
+          if [ "$OLD_KEY" = "$NEW_KEY" ]; then
+            echo "key did not change"; exit 1
+          fi
+          echo "key rotated: ${OLD_KEY:0:10}... → ${NEW_KEY:0:10}..."
+
+      - name: Restart app to apply the new key
+        run: |
+          docker compose -f docker-compose.prod.yml stop app-blue 2>/dev/null || true
+          docker compose -f docker-compose.prod.yml up -d --no-deps app-blue
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:8088/health/live/ | grep -q '"alive"'; then
+              echo "app serving after key rotation"; exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Rotate the postgres password
+        run: |
+          OLD_PASS=$(grep '^POSTGRES_PASSWORD=' .env | cut -d= -f2)
+          bash scripts/rotate-secrets.sh --password
+          NEW_PASS=$(grep '^POSTGRES_PASSWORD=' .env | cut -d= -f2)
+          if [ "$OLD_PASS" = "$NEW_PASS" ]; then
+            echo "password did not change"; exit 1
+          fi
+          echo "password rotated"
+
+      - name: Verify app is serving after password rotation
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8088/health/live/ | grep -q '"alive"'; then
+              echo "app serving after password rotation"; exit 0
+            fi
+            sleep 2
+          done
+          docker compose -f docker-compose.prod.yml logs --no-color || true
+          exit 1
+
+      - name: Verify readiness (DB + Redis connected with new password)
+        run: |
+          for i in $(seq 1 30); do
+            body=$(curl -s http://127.0.0.1:8088/health/ready/ || true)
+            if echo "$body" | grep -q '"ready"'; then
+              echo "ready after rotation: $body"; exit 0
+            fi
+            sleep 2
+          done
+          echo "not ready after rotation"
+          exit 1
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.prod.yml logs --no-color || true
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down --remove-orphans -v
