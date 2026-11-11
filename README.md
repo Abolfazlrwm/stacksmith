@@ -3,6 +3,8 @@
 [![lint](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/lint.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/lint.yml)
 [![smoke](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/smoke.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/smoke.yml)
 [![restore drill](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/restore-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/restore-drill.yml)
+[![encryption drill](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/encryption-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/encryption-drill.yml)
+[![logs drill](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/logs-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/logs-drill.yml)
 [![Release](https://img.shields.io/github/v/release/Abolfazlrwm/stacksmith?sort=semver)](https://github.com/Abolfazlrwm/stacksmith/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -57,21 +59,29 @@ make backup                   # take a database backup
 
 ## What works today (proven in CI)
 
-- **Lint** — `yamllint`, `shellcheck`, `docker compose config` on every push.
+- **Lint** — `yamllint`, `shellcheck`, `docker compose config` (including TLS overlay) on every push.
 - **Smoke (stub)** — nginx + static health page.
 - **Smoke (prod)** — full stack up (app, worker, beat, postgres, redis, nginx),
   `/health/live/` and `/health/ready/` probed through nginx.
-- **Deploy + rollback drill** — blue → green → blue with `/health` probes at
-  every step. This is the proof that deploys are zero-downtime.
+- **Deploy + rollback drill** — blue → green → blue with canary probes at
+  every step. Zero-downtime proven.
+- **Canary failure → auto-rollback** — break app-green, verify deploy.sh
+  catches it and rolls back automatically.
 - **Restore drill** — seed a row, back up, drop the row, restore, verify the
-  row count is back. A backup that has never been restored is not a backup.
+  row count. The backup metric (`backup.prom`) is verified too.
+- **Encryption drill** — encrypt a backup with `age`, drop a row, restore
+  from the encrypted file, verify the row is back.
+- **Logs drill** — bring up Loki + promtail, generate a log line, query Loki
+  and verify the log was ingested.
 
 ## Known limitations
 
-See [docs/known-limitations.md](docs/known-limitations.md). The short version:
-TLS is a template (not automated), no log aggregation, the backup-freshness
-metric is not yet written by the backup script, no canary checks post-switch,
-no off-host encryption, single host.
+See [docs/known-limitations.md](docs/known-limitations.md). The v0.2.0
+release closes every item from the v0.2 roadmap. What remains:
+
+- Single host (no HA) — deliberate (ADR-0001).
+- No automated secret rotation — manual (ADR-0005).
+- Tested in CI against a fresh database, not a large production one.
 
 ## Architecture decisions
 
@@ -80,6 +90,11 @@ no off-host encryption, single host.
 - [ADR-0003: dump-based backups over WAL shipping](docs/adr/0003-dump-based-backups-over-wal-shipping.md)
 - [ADR-0004: metrics-first, logs-second observability](docs/adr/0004-metrics-first-logs-second-observability.md)
 - [ADR-0005: secrets in .env with documented rotation](docs/adr/0005-secrets-in-env-with-documented-rotation.md)
+- [ADR-0006: backup freshness as a textfile metric](docs/adr/0006-backup-freshness-as-textfile-metric.md)
+- [ADR-0007: off-host encryption with age](docs/adr/0007-off-host-encryption-with-age.md)
+- [ADR-0008: canary checks post-switch with auto-rollback](docs/adr/0008-canary-checks-post-switch.md)
+- [ADR-0009: Loki as a secondary observability signal](docs/adr/0009-loki-as-secondary-observability.md)
+- [ADR-0010: automated TLS with certbot](docs/adr/0010-automated-tls-with-certbot.md)
 
 ## Runbooks
 
