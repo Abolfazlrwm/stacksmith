@@ -189,15 +189,21 @@ jobs:
           done
           exit 1
 
-      - name: Start app-green, then break it so canary fails
+      - name: Start app-green, then break readiness so canary fails
         run: |
+          # Start green so it passes the initial --wait healthcheck.
           docker compose -f docker-compose.prod.yml --profile green up -d --wait --no-deps app-green
+          # Confirm green is healthy on its own (both live and ready pass).
           docker compose -f docker-compose.prod.yml exec -T app-green \
             curl -fsS http://127.0.0.1:8000/health/live/ | grep -q '"alive"'
           docker compose -f docker-compose.prod.yml exec -T app-green \
-            sh -c 'pkill -f gunicorn || true'
-          sleep 2
-          echo "app-green broken — canary should fail"
+            curl -fsS http://127.0.0.1:8000/health/ready/ | grep -q '"ready"'
+          # Now break readiness: touch the sentinel file so /health/ready/ returns 503.
+          # /health/live/ still returns 200, so deploy.sh's --wait passes,
+          # but the canary probe on /health/ready/ fails → auto-rollback.
+          docker compose -f docker-compose.prod.yml exec -T app-green \
+            touch /tmp/break_ready
+          echo "app-green readiness broken — canary should fail"
 
       - name: Deploy to green (expected to fail canary and roll back)
         run: |
