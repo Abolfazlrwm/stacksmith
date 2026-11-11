@@ -1,0 +1,100 @@
+---
+name: encryption-drill
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  encryption-drill:
+    name: encrypt → decrypt → restore → verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install age
+        run: |
+          set -euo pipefail
+          curl -sSL https://github.com/FiloSottile/age/releases/download/v1.2.1/age-v1.2.1-linux-amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin --strip-components=1 age/age age/age-keygen
+          age --version
+
+      - name: Write CI .env
+        run: |
+          cp .env.example .env
+          sed -i 's/DJANGO_SECRET_KEY=.*/DJANGO_SECRET_KEY=ci-test-secret-key-not-for-production-0123456789/' .env
+          sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci-test-password/' .env
+          sed -i 's/DJANGO_ALLOWED_HOSTS=.*/DJANGO_ALLOWED_HOSTS=*/' .env
+          sed -i 's/NGINX_HTTP_PORT=.*/NGINX_HTTP_PORT=8083/' .env
+          # Generate an age keypair for the drill.
+          age-keygen -o age.key 2>/dev/null
+          PUB="$(age-keygen -y age.key)"
+          sed -i "s|BACKUP_AGE_RECIPIENT=.*|BACKUP_AGE_RECIPIENT=$PUB|" .env
+          sed -i "s|BACKUP_AGE_IDENTITY=.*|BACKUP_AGE_IDENTITY=$(pwd)/age.key|" .env
+
+      - name: Bring up the stack
+        run: docker compose -f docker-compose.prod.yml up -d --build --wait
+
+      - name: Seed a test row
+        run: |
+          docker compose -f docker-compose.prod.yml exec -T postgres \
+            psql -U docubot -d docubot -c \
+            "CREATE TABLE IF NOT EXISTS _drill_marker (id int, note text);"
+          docker compose -f docker-compose.prod.yml exec -T postgres \
+            psql -U docubot -d docubot -c \
+            "INSERT INTO _drill_marker VALUES (1, 'pre-encrypt');"
+
+      - name: Take a backup
+        run: bash scripts/backup-db.sh
+
+      - name: Encrypt the backup
+        run: bash scripts/encrypt-backups.sh
+
+      - name: Verify the .age file exists
+        run: |
+          set -euo pipefail
+          AGE_FILE="$(ls -1t backups/docubot-*.sql.gz.age | head -1)"
+          if [ ! -f "$AGE_FILE" ]; then
+            echo "no .age file produced"; exit 1
+          fi
+          echo "encrypted backup: $AGE_FILE"
+          # Confirm the .age file is not the plaintext (different first bytes).
+          if cmp -s "$AGE_FILE" "$(ls -1t backups/docubot-*.sql.gz | head -1)"; then
+            echo "ERROR: .age file is identical to the plaintext"; exit 1
+          fi
+          echo "encryption OK"
+
+      - name: Drop the test row
+        run: |
+          docker compose -f docker-compose.prod.yml exec -T postgres \
+            psql -U docubot -d docubot -c "DROP TABLE _drill_marker;"
+
+      - name: Restore from the encrypted backup
+        run: |
+          AGE_FILE="$(ls -1t backups/docubot-*.sql.gz.age | head -1)"
+          echo "restoring from $AGE_FILE"
+          bash scripts/restore-db.sh "$AGE_FILE" --yes
+
+      - name: Verify the row is back
+        run: |
+          count=$(docker compose -f docker-compose.prod.yml exec -T postgres \
+            psql -U docubot -d docubot -tAc "SELECT count(*) FROM _drill_marker;")
+          echo "row count after encrypted restore: $count"
+          if [ "$count" != "1" ]; then
+            echo "encrypted restore verification FAILED — expected 1 row, got $count"
+            exit 1
+          fi
+          echo "encrypted restore OK"
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.prod.yml logs --no-color || true
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down --remove-orphans -v

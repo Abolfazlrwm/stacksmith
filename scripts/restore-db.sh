@@ -3,6 +3,10 @@
 #
 # Usage: bash scripts/restore-db.sh <file> [--yes]
 #
+# Accepts:
+#   - docubot-*.sql.gz          (plaintext local backup)
+#   - docubot-*.sql.gz.age      (encrypted off-host backup; decrypts first)
+#
 # The --yes flag skips the interactive confirmation (for CI / automation).
 set -euo pipefail
 
@@ -15,8 +19,32 @@ if [ ! -f "$FILE" ]; then
   exit 1
 fi
 
+# If the file is encrypted (.age), decrypt it first to a temp file and
+# run the rest of the pipeline against the decrypted .gz.
+DECRYPTED_TMP=""
+if [[ "$FILE" == *.age ]]; then
+  echo "[restore] file is encrypted; decrypting first"
+  DECRYPTED_TMP="$(mktemp -t docubot-restore.XXXXXX.sql.gz)"
+  set -a
+  # shellcheck disable=SC1091
+  . ./.env
+  set +a
+  IDENTITY="${AGE_IDENTITY_FILE:-${BACKUP_AGE_IDENTITY:-}}"
+  if [ -z "$IDENTITY" ] || [ ! -f "$IDENTITY" ]; then
+    echo "[restore] age identity not found — set BACKUP_AGE_IDENTITY in .env"
+    rm -f "$DECRYPTED_TMP"
+    exit 1
+  fi
+  age -d -i "$IDENTITY" -o "$DECRYPTED_TMP" "$FILE"
+  GZ_FILE="$DECRYPTED_TMP"
+  trap 'rm -f "$DECRYPTED_TMP"' EXIT
+  echo "[restore] decrypted to $GZ_FILE"
+else
+  GZ_FILE="$FILE"
+fi
+
 # Pre-flight: verify the sha256 checksum if a .sha256 sidecar exists.
-SHA_FILE="${FILE}.sha256"
+SHA_FILE="${GZ_FILE}.sha256"
 if [ -f "$SHA_FILE" ]; then
   echo "[restore] verifying checksum"
   if ! sha256sum -c "$SHA_FILE" --quiet; then
@@ -46,8 +74,8 @@ fi
 echo "[restore] stopping app instances to prevent writes"
 docker compose -f "$COMPOSE_FILE" stop app-blue app-green worker beat 2>/dev/null || true
 
-echo "[restore] loading $FILE into postgres"
-gunzip -c "$FILE" | docker compose -f "$COMPOSE_FILE" exec -T postgres \
+echo "[restore] loading $GZ_FILE into postgres"
+gunzip -c "$GZ_FILE" | docker compose -f "$COMPOSE_FILE" exec -T postgres \
   psql -U "${POSTGRES_USER:-docubot}" -d "${POSTGRES_DB:-docubot}" -v ON_ERROR_STOP=1
 
 echo "[restore] restarting app instances"
