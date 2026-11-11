@@ -77,9 +77,8 @@ services:
     image: grafana/tempo:latest
     command: ["-config.file=/etc/tempo.yml"]
     ports:
-      -
-      - "127.0.0.1:4318:4318"    # otlp http
-      - "127.0.0.1:3200:3200"  # tempo api
+      - "127.0.0.1:4318:4318"
+      - "127.0.0.1:3200:3200"
     volumes:
       - ./monitoring/tempo.yml:/etc/tempo.yml:ro
       - tempo_data:/var/tempo
