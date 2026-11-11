@@ -85,10 +85,10 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3200/ready"]
-      interval: 15s
+      interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 15
+      start_period: 60s
 
   grafana:
     image: grafana/grafana:latest
