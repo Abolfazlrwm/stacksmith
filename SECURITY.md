@@ -2,12 +2,12 @@
 
 ## Supported Versions
 
-StackSmith is at `v0.1.0`. Security fixes land on the **latest release line**;
+StackSmith is at `v0.3.0`. Security fixes land on the **latest release line**;
 there is no long-term-support branch yet.
 
 | Version | Supported |
 |---------|-----------|
-| 0.1.x (latest) | yes |
+| 0.3.x (latest) | yes |
 | older lines | no |
 
 ## Reporting a Vulnerability
@@ -38,26 +38,44 @@ different codebase with its own
 [security process](https://github.com/Abolfazlrwm/docubot/security/policy) —
 report those there.
 
+## Automated security scanning
+
+Three CI workflows scan every push and pull request:
+
+- **CodeQL** (`.github/workflows/codeql.yml`) — semantic analysis of the
+  Python app code. Runs on push, PR, and weekly on Monday. Results upload
+  to GitHub Security tab.
+- **Trivy container scan** (`.github/workflows/container-scan.yml`) —
+  scans the built `stacksmith/app:latest` image for known CVEs at CRITICAL
+  and HIGH severity. Fails the build if an unfixed vulnerability is found.
+  Results upload as SARIF to the Security tab.
+- **Dependency review** (`.github/workflows/dependency-review.yml`) — on
+  every PR to `main`, checks changed dependencies for known vulnerabilities
+  and license issues. Fails on MODERATE or above.
+
 ## Security posture of this kit
 
 Stated plainly, including the weak spots:
 
 - **Secrets live in `.env` on the host** (gitignored, documented in
   `.env.example`), not in a secret manager. ADR-0005 records this decision
-  and the rotation procedure. Protect the host accordingly: `chmod 600`,
-  no shared shells, no secrets in logs.
+  and the rotation procedure. `scripts/rotate-secrets.sh` automates
+  zero-downtime rotation (ADR-0013).
 - **No secret ever lands in git, logs or release manifests.** Manifests
   fingerprint the environment by variable names only, never by values.
-- **Backups are checksummed (sha256) before they leave the host.** They are
-  not encrypted at rest yet — off-host encryption with `age` is planned for
-  v0.2. Until then, protect the backup destination like the database itself.
+- **Backups are checksummed (sha256) and encrypted with `age` before they
+  leave the host** (ADR-0007). The private key never touches the VPS; a
+  compromised host cannot decrypt its own backups.
 - **The restore path requires a checksum match and an explicit confirmation**
   (`--yes` for CI), so a corrupted or truncated dump cannot silently wipe the
-  database.
-- **TLS is a template, not automated** — see `docs/known-limitations.md`.
-  Until real certificates are in place, do not point this stack at the
-  public internet.
-- **Grafana listens on port 3000 directly**, not behind nginx with auth.
-  Restrict it with a firewall on a public host.
+  database. Backup integrity is verified against a throwaway database
+  (ADR-0012).
+- **TLS is automated** — certbot runs in a renewal loop (ADR-0010) and
+  reloads nginx after each successful renewal.
+- **Grafana is behind nginx with basic auth** (ADR in the Phase 6.6 PR).
+  Port 3000 is not exposed directly.
+- **Alerts route to Slack** via Alertmanager (ADR-0011). A failed backup
+  pages within 5 minutes; a stale backup pages within 26 hours.
 - **Single host.** There is no HA and no multi-tenant isolation story here;
-  the kit assumes you control the whole machine.
+  the kit assumes you control the whole machine. ADR-0015 documents what
+  multi-host would require.
