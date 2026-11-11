@@ -11,8 +11,10 @@ stacksmith deployment. For incident-specific steps, see
 1. `curl :8080/health/ready/` — returns 200 with `"ready"`.
 2. `docker compose -f docker-compose.prod.yml ps` — all services Up.
 3. `ls -lh backups/` — a backup from last night exists and is non-empty.
-4. Open Grafana (`:3000`) — the services dashboard shows the health probe
-   as UP and no firing alerts.
+4. `curl :9093/api/v2/alerts` — no firing alerts (or check the Alertmanager
+   UI at `:9093`).
+5. Open Grafana (`/grafana/`) — the services dashboard shows the health
+   probe as UP.
 
 If any of these fail, jump to the [failure playbook](failure-playbook.md).
 

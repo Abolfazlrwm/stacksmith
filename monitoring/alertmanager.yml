@@ -1,0 +1,60 @@
+---
+# Alertmanager config template — placeholders are substituted at startup.
+#
+# __SLACK_WEBHOOK_URL__ is replaced by the container's entrypoint script
+# (docker-compose.monitoring.yml) from the SLACK_WEBHOOK_URL env var.
+# Empty values produce a config with an empty URL; the sed command in the
+# compose substitutes a local sink so Alertmanager starts even without a
+# real Slack webhook configured.
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: default
+  group_by: ["alertname", "service"]
+  group_wait: 10s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers:
+        - severity = "critical"
+      receiver: critical
+      group_wait: 0s
+      repeat_interval: 1h
+    - matchers:
+        - severity = "warning"
+      receiver: warning
+      group_wait: 30m
+      repeat_interval: 4h
+
+receivers:
+  - name: default
+    webhook_configs:
+      - url: "http://127.0.0.1:9093/alerts"
+        send_resolved: true
+
+  - name: critical
+    webhook_configs:
+      - url: "__SLACK_WEBHOOK_URL__"
+        send_resolved: true
+    slack_configs:
+      - api_url: "__SLACK_WEBHOOK_URL__"
+        channel: "#ops"
+        send_resolved: true
+        title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}\n{{ end }}'
+
+  - name: warning
+    slack_configs:
+      - api_url: "__SLACK_WEBHOOK_URL__"
+        channel: "#ops"
+        send_resolved: true
+        title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}\n{{ end }}'
+
+inhibit_rules:
+  - source_matchers:
+      - severity = "critical"
+    target_matchers:
+      - severity = "warning"
+    equal: ["alertname", "service"]
