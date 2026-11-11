@@ -58,7 +58,7 @@ jobs:
             curl -fsS http://127.0.0.1:8089/health/live/ | grep -q '"alive"' || true
             curl -fsS http://127.0.0.1:8089/health/ready/ | grep -q '"ready"' || true
           done
-          sleep 10
+          sleep 30
 
       - name: Check app telemetry logs
         run: |
