@@ -15,8 +15,9 @@ What works today is proven in CI. What does not is listed here, honestly.
   to the new color immediately. There is no 1%-then-10%-then-100% ramp.
   Canary checks are on the v0.2 roadmap.
 - **No off-host encryption.** `sync-backups.sh` copies dumps over rsync
-  as-is. The dumps are not encrypted at rest on the off-host. Off-host
-  encryption with `age` is on the v0.2 roadmap.
+  as-is. ~~The dumps are not encrypted at rest on the off-host. Off-host
+  encryption with `age` is on the v0.2 roadmap.~~ Closed by ADR-0007
+  (see "Recently closed" below).
 - **Single host.** Everything runs on one VPS. There is no HA, no
   multi-host failover, no horizontal scaling. ADR-0001 documents this as
   a deliberate choice.
@@ -29,6 +30,12 @@ What works today is proven in CI. What does not is listed here, honestly.
 
 ## Recently closed
 
+- **Off-host encryption** (closed 2026-11-11, ADR-0007). Backups are
+  encrypted with `age` before leaving the host. `encrypt-backups.sh`
+  produces `.age` files using the public key in `.env`;
+  `sync-backups.sh` ships only `.age` files; `restore-db.sh` decrypts
+  `.age` files using the private key. The encryption-drill workflow
+  proves the full cycle: encrypt, drop, restore from encrypted, verify.
 - **Backup freshness metric** (closed 2026-11-10, ADR-0006).
   `backup-db.sh` now writes `monitoring/textfile/backup.prom` with three
   gauges (`backup_last_success_timestamp_seconds`,
