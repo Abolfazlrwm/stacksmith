@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# sync-backups.sh — copy backups off-host over rsync with a lock file.
+# sync-backups.sh — copy encrypted backups off-host over rsync with a lock file.
 #
 # Usage: bash scripts/sync-backups.sh [user@host:/path]
 #
-# The destination defaults to BACKUP_REMOTE from .env. A lock file prevents
-# two concurrent runs from racing on the same destination.
+# The destination defaults to BACKUP_REMOTE from .env. Only .age files
+# (produced by encrypt-backups.sh) are shipped; plaintext dumps stay on
+# the host. A lock file prevents two concurrent runs from racing.
 set -euo pipefail
 
 BACKUP_DIR="backups"
@@ -23,15 +24,15 @@ if ! flock -n 9; then
   exit 0
 fi
 
-if [ ! -d "$BACKUP_DIR" ] || [ -z "$(ls -A "$BACKUP_DIR"/docubot-*.sql.gz 2>/dev/null)" ]; then
-  echo "[sync] no backups to copy"
+if [ ! -d "$BACKUP_DIR" ] || [ -z "$(ls -A "$BACKUP_DIR"/docubot-*.sql.gz.age 2>/dev/null)" ]; then
+  echo "[sync] no encrypted backups to copy — run encrypt-backups.sh first"
   exit 0
 fi
 
-echo "[sync] copying $BACKUP_DIR/ to $DEST"
+echo "[sync] copying encrypted backups from $BACKUP_DIR/ to $DEST"
+# Only ship the .age files. Plaintext .gz and .sha256 stay on the host.
 rsync -avz --delete \
-  --include='docubot-*.sql.gz' \
-  --include='docubot-*.sql.gz.sha256' \
+  --include='docubot-*.sql.gz.age' \
   --exclude='*' \
   "$BACKUP_DIR/" "$DEST/"
 
