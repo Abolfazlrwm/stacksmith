@@ -113,12 +113,6 @@ services:
       - ./monitoring/loki.yml:/etc/loki/loki.yml:ro
       - loki_data:/loki
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3100/metrics || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
 
   promtail:
     image: grafana/promtail:latest

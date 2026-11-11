@@ -30,7 +30,12 @@ jobs:
 
       - name: Bring up the stack and the monitoring overlay together
         run: |
-          docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d --build --wait
+          # Bring up everything (shared network) but don't --wait on the
+          # monitoring services (Loki/Tempo healthchecks are slow/flaky).
+          docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d --build
+          # Wait for the app to be healthy.
+          docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d --wait \
+            app-blue postgres redis nginx
 
       - name: Wait for Tempo to be ready
         run: |
