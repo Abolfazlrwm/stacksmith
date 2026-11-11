@@ -1,0 +1,47 @@
+---
+name: load-test
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  k6:
+    name: k6 load test — health endpoint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write CI .env
+        run: |
+          cp .env.example .env
+          sed -i 's/DJANGO_SECRET_KEY=.*/DJANGO_SECRET_KEY=ci-load-test-secret/' .env
+          sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci-load-test-pass/' .env
+          sed -i 's/DJANGO_ALLOWED_HOSTS=.*/DJANGO_ALLOWED_HOSTS=*/' .env
+          sed -i 's/NGINX_HTTP_PORT=.*/NGINX_HTTP_PORT=8090/' .env
+
+      - name: Bring up the stack
+        run: docker compose -f docker-compose.prod.yml up -d --build --wait
+
+      - name: Verify the stack is serving
+        run: |
+          curl -fsS http://127.0.0.1:8090/health/live/ | grep -q '"alive"'
+
+      - name: Install k6
+        run: |
+          curl -sSfL https://github.com/grafana/k6/releases/download/v0.57.0/k6-v0.57.0-linux-amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin --strip-components=1 k6-v0.57.0-linux-amd64/k6
+          k6 version
+
+      - name: Run k6 load test
+        run: |
+          K6_BASE_URL=http://127.0.0.1:8090 k6 run tests/load/health.js
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down --remove-orphans -v
