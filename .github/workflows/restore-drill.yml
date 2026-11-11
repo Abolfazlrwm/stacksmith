@@ -40,6 +40,29 @@ jobs:
       - name: Take a backup
         run: bash scripts/backup-db.sh
 
+      - name: Verify the backup metric was written
+        run: |
+          if [ ! -f monitoring/textfile/backup.prom ]; then
+            echo "backup.prom metric file was not written"
+            exit 1
+          fi
+          echo "--- backup.prom ---"
+          cat monitoring/textfile/backup.prom
+          # Verify the gauge values are present and non-zero.
+          ts=$(grep '^backup_last_success_timestamp_seconds' monitoring/textfile/backup.prom | awk '{print $2}')
+          sz=$(grep '^backup_last_success_bytes' monitoring/textfile/backup.prom | awk '{print $2}')
+          st=$(grep '^backup_last_status' monitoring/textfile/backup.prom | awk '{print $2}')
+          if [ -z "$ts" ] || [ "$ts" = "0" ]; then
+            echo "backup_last_success_timestamp_seconds missing or zero"; exit 1
+          fi
+          if [ -z "$sz" ] || [ "$sz" = "0" ]; then
+            echo "backup_last_success_bytes missing or zero"; exit 1
+          fi
+          if [ "$st" != "1" ]; then
+            echo "backup_last_status expected 1, got $st"; exit 1
+          fi
+          echo "backup metric OK (ts=$ts size=$sz status=$st)"
+
       - name: Wipe the test row
         run: |
           docker compose -f docker-compose.prod.yml exec -T postgres \

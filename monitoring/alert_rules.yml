@@ -4,13 +4,22 @@ groups:
   - name: stacksmith-backup
     rules:
       - alert: BackupStale
-        expr: time() - (node_textfile_mtime_seconds{file="backup.prom"} or vector(0)) > 93600
+        expr: time() - backup_last_success_timestamp_seconds > 93600
         for: 10m
         labels:
           severity: critical
         annotations:
           summary: "Database backup is stale"
-          description: "No backup in over 26 hours. Check the stacksmith-backup timer."
+          description: "No successful backup in over 26 hours. Check the stacksmith-backup timer."
+
+      - alert: BackupFailed
+        expr: backup_last_status == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Last backup reported failure"
+          description: "backup_last_status is 0 — the most recent backup-db.sh run failed."
 
   - name: stacksmith-saturation
     rules:
