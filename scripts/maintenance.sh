@@ -20,7 +20,6 @@ set -euo pipefail
 COMPOSE_FILE="docker-compose.prod.yml"
 MAINT_FILE="monitoring/textfile/maintenance.prom"
 NGINX_MAINT_ON="nginx/maintenance-on.conf"
-NGINX_MAINT_OFF="nginx/maintenance-off.conf"
 EPOCH="$(date -u +%s)"
 
 mode="${1:?usage: maintenance.sh on|off [reason]}"
