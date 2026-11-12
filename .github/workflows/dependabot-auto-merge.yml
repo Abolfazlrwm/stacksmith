@@ -1,0 +1,57 @@
+---
+name: dependabot-auto-merge
+
+# Automatically merges Dependabot PRs for patch and minor bumps
+# that pass CI. Major bumps are left for manual review.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    name: auto-merge patch and minor dep bumps
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    timeout-minutes: 5
+    steps:
+      - name: Fetch dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Approve and merge patch bumps
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        run: |
+          gh pr review --approve "$PR_URL" \
+            --body "Auto-approved: patch dependency bump."
+          gh pr merge --auto --squash "$PR_URL" \
+            --body "Auto-merged: patch bump, all CI checks passed."
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Approve and merge minor bumps
+        if: steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        run: |
+          gh pr review --approve "$PR_URL" \
+            --body "Auto-approved: minor dependency bump."
+          gh pr merge --auto --squash "$PR_URL" \
+            --body "Auto-merged: minor bump, all CI checks passed."
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Label major bumps for review
+        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+        run: |
+          gh pr edit "$PR_URL" --add-label "needs-review"
+          gh pr comment "$PR_URL" \
+            --body "Major bump detected — left for manual review. Check breaking changes before merging."
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
