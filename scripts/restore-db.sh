@@ -79,8 +79,13 @@ gunzip -c "$GZ_FILE" | docker compose -f "$COMPOSE_FILE" exec -T postgres \
   psql -U "${POSTGRES_USER:-docubot}" -d "${POSTGRES_DB:-docubot}" -v ON_ERROR_STOP=1
 
 echo "[restore] restarting app instances"
-docker compose -f "$COMPOSE_FILE" up -d --wait --no-deps app-blue 2>/dev/null || \
-  docker compose -f "$COMPOSE_FILE" up -d --no-deps app-blue 2>/dev/null || true
-docker compose -f "$COMPOSE_FILE" up -d --no-deps worker beat 2>/dev/null || true
+# --force-recreate so new containers read the current env.
+# --no-deps so postgres/redis/nginx are not cascaded.
+# --wait so compose waits for the healthcheck to pass before returning.
+docker compose -f "$COMPOSE_FILE" up -d --wait --no-deps --force-recreate \
+  app-blue worker beat 2>/dev/null || true
+# Reload nginx so it re-resolves the upstream IP (the recreated
+# app-blue container has a new IP that nginx has not cached).
+docker compose -f "$COMPOSE_FILE" exec -T nginx nginx -s reload 2>/dev/null || true
 
 echo "[restore] done"
