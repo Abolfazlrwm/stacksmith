@@ -6,6 +6,25 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-12-14
+
+Operational excellence: maintenance mode, recording rules, health CLI,
+capacity planning, audit log.
+
+### Added
+
+- **Phase 13.1** — Maintenance window mode (`maintenance.sh`) + Prometheus
+  recording rules (10 pre-computed metrics). ADR-0030.
+- **Phase 13.2** — Health check CLI (`stacksmith-health.sh`) + capacity
+  planning dashboard (7-day trends, disk exhaustion prediction).
+- **Phase 13.3** — Audit log (`audit-log.sh`) called by deploy, rollback,
+  restore, backup. ADR-0030.
+
+### Proven in CI (24 workflows)
+
+All previous 23 plus the maintenance metric (verified by the health CLI
+in the smoke drill).
+
 ## [0.8.0] — 2026-12-11
 
 Multi-provider infrastructure, architecture documentation, API specification.

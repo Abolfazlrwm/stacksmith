@@ -129,4 +129,5 @@ if [ "$ACTIVE" != "none" ]; then
   docker compose -f "$COMPOSE_FILE" stop "app-$ACTIVE"
 fi
 
+bash scripts/audit-log.sh "deploy" "active=$TARGET"
 echo "[deploy] done — app-$TARGET is live"

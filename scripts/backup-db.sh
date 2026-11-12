@@ -96,6 +96,7 @@ ls -1t "$BACKUP_DIR"/docubot-*.sql.gz 2>/dev/null | while read -r f; do
   fi
 done
 
+bash scripts/audit-log.sh "backup" "file='$(basename "$FILE")'"
 echo "[backup] done"
 # shellcheck disable=SC2012  # informational listing only
 ls -lh "$BACKUP_DIR"/docubot-*.sql.gz 2>/dev/null | tail -5

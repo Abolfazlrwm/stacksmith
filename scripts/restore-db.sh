@@ -88,4 +88,5 @@ docker compose -f "$COMPOSE_FILE" up -d --wait --no-deps --force-recreate \
 # app-blue container has a new IP that nginx has not cached).
 docker compose -f "$COMPOSE_FILE" exec -T nginx nginx -s reload 2>/dev/null || true
 
+bash scripts/audit-log.sh "restore" "file='$FILE'"
 echo "[restore] done"
