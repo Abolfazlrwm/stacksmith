@@ -1,10 +1,19 @@
 # stacksmith — VPS provisioning as code.
 #
-# This module provisions a single VPS, opens the firewall, and writes a
-# deploy script that SSHs in and runs the stack. It is intentionally
-# provider-agnostic: the default is Hetzner Cloud (cheap, simple), but
-# the module structure supports swapping to DigitalOcean or AWS by
-# changing the provider block.
+# Supports two providers: Hetzner Cloud (default) and DigitalOcean.
+# Select with the `provider` variable.
+#
+# Usage:
+#   terraform init
+#   terraform apply \
+#     -var="provider=hcloud" \
+#     -var="hcloud_token=..." \
+#     -var="ssh_key_name=..."
+#   # or
+#   terraform apply \
+#     -var="provider=digitalocean" \
+#     -var="do_token=..." \
+#     -var="ssh_key_name=..."
 
 terraform {
   required_version = ">= 1.6"
@@ -13,6 +22,10 @@ terraform {
       source  = "hetznercloud/hcloud"
       version = "~> 1.45"
     }
+    digitalocean = {
+      source  = "digitalocean/digitalocean"
+      version = "~> 2.30"
+    }
     local = {
       source  = "hashicorp/local"
       version = "~> 2.4"
@@ -20,10 +33,26 @@ terraform {
   }
 }
 
+# --- Variables ---
+
+variable "provider" {
+  description = "Cloud provider: hcloud or digitalocean"
+  type        = string
+  default     = "hcloud"
+}
+
 variable "hcloud_token" {
   description = "Hetzner Cloud API token"
   type        = string
   sensitive   = true
+  default     = ""
+}
+
+variable "do_token" {
+  description = "DigitalOcean API token"
+  type        = string
+  sensitive   = true
+  default     = ""
 }
 
 variable "server_name" {
@@ -33,108 +62,159 @@ variable "server_name" {
 }
 
 variable "server_type" {
-  description = "Hetzner server type (cx22 = 2 vCPU / 4 GB)"
+  description = "Server size (provider-specific defaults below)"
   type        = string
-  default     = "cx22"
+  default     = ""
 }
 
 variable "location" {
-  description = "Hetzner datacenter"
+  description = "Datacenter region"
   type        = string
-  default     = "nbg1"
+  default     = ""
 }
 
 variable "ssh_key_name" {
-  description = "Name of the SSH key in Hetzner Cloud"
+  description = "Name of the SSH key (must be uploaded to the provider)"
   type        = string
 }
 
 variable "domain" {
-  description = "Domain for the docubot stack (for DNS and TLS)"
+  description = "Domain for TLS (optional)"
   type        = string
   default     = ""
 }
+
+variable "cost_vps_monthly_usd" {
+  description = "Monthly cost for the cost metric"
+  type        = string
+  default     = "8.0"
+}
+
+# --- Provider configuration (only the selected provider is activated) ---
 
 provider "hcloud" {
   token = var.hcloud_token
 }
 
-# SSH key (must be uploaded to Hetzner Cloud separately)
-data "hcloud_ssh_key" "deploy" {
-  name = var.ssh_key_name
+provider "digitalocean" {
+  token = var.do_token
 }
 
-# Firewall: allow SSH (22), HTTP (80), HTTPS (443), and monitoring (3000)
-# from anywhere. All other ports are closed.
-resource "hcloud_firewall" "stacksmith" {
-  name = "${var.server_name}-fw"
+# --- Hetzner Cloud resources ---
+
+data "hcloud_ssh_key" "hcloud_key" {
+  count = var.provider == "hcloud" ? 1 : 0
+  name  = var.ssh_key_name
+}
+
+resource "hcloud_firewall" "hcloud_fw" {
+  count = var.provider == "hcloud" ? 1 : 0
+  name  = "${var.server_name}-fw"
 
   rule {
-    direction = "in"
-    protocol  = "tcp"
-    port      = "22"
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "22"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
-
   rule {
-    direction = "in"
-    protocol  = "tcp"
-    port      = "80"
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "80"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
-
   rule {
-    direction = "in"
-    protocol  = "tcp"
-    port      = "443"
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "443"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
-
-  # Monitoring (Grafana) — restrict to a known IP in production.
   rule {
-    direction = "in"
-    protocol  = "tcp"
-    port      = "3000"
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "3000"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
 }
 
-# The VPS
-resource "hcloud_server" "stacksmith" {
-  name        = var.server_name
-  server_type = var.server_type
-  location    = var.location
-  image       = "ubuntu-24.04"
-  ssh_keys    = [data.hcloud_ssh_key.deploy.id]
-  firewall_ids = [hcloud_firewall.stacksmith.id]
-
+resource "hcloud_server" "hcloud_server" {
+  count        = var.provider == "hcloud" ? 1 : 0
+  name         = var.server_name
+  server_type  = coalesce(var.server_type, "cx22")
+  location     = coalesce(var.location, "nbg1")
+  image        = "ubuntu-24.04"
+  ssh_keys     = [data.hcloud_ssh_key.hcloud_key[0].id]
+  firewall_ids = [hcloud_firewall.hcloud_fw[0].id]
+  user_data    = templatefile("${path.module}/cloud-init.yml", { domain = var.domain })
   labels = {
     project = "stacksmith"
     role    = "prod"
   }
-
-  # Provision Docker and docker-compose on first boot.
-  user_data = templatefile("${path.module}/cloud-init.yml", {
-    domain = var.domain
-  })
 }
+
+# --- DigitalOcean resources ---
+
+data "digitalocean_ssh_key" "do_key" {
+  count = var.provider == "digitalocean" ? 1 : 0
+  name  = var.ssh_key_name
+}
+
+resource "digitalocean_firewall" "do_fw" {
+  count = var.provider == "digitalocean" ? 1 : 0
+  name  = "${var.server_name}-fw"
+
+  inbound_rule {
+    protocol         = "tcp"
+    port_range       = "22"
+    source_addresses = ["0.0.0.0/0", "::/0"]
+  }
+  inbound_rule {
+    protocol         = "tcp"
+    port_range       = "80"
+    source_addresses = ["0.0.0.0/0", "::/0"]
+  }
+  inbound_rule {
+    protocol         = "tcp"
+    port_range       = "443"
+    source_addresses = ["0.0.0.0/0", "::/0"]
+  }
+  inbound_rule {
+    protocol         = "tcp"
+    port_range       = "3000"
+    source_addresses = ["0.0.0.0/0", "::/0"]
+  }
+}
+
+resource "digitalocean_droplet" "do_server" {
+  count    = var.provider == "digitalocean" ? 1 : 0
+  name     = var.server_name
+  size     = coalesce(var.server_type, "s-2vcpu-4gb")
+  region   = coalesce(var.location, "fra1")
+  image    = "ubuntu-24-04"
+  ssh_keys = [data.digitalocean_ssh_key.do_key[0].id]
+  user_data = templatefile("${path.module}/cloud-init.yml", { domain = var.domain })
+  tags     = ["stacksmith", "prod"]
+}
+
+resource "digitalocean_firewall_attachment" "do_fw_attach" {
+  count      = var.provider == "digitalocean" ? 1 : 0
+  firewall_id = digitalocean_firewall.do_fw[0].id
+  droplet_ids = [digitalocean_droplet.do_server[0].id]
+}
+
+# --- Outputs (unified across providers) ---
 
 output "server_ip" {
-  value = hcloud_server.stacksmith.ipv4_address
-}
-
-output "server_ipv6" {
-  value = hcloud_server.stacksmith.ipv6_address
+  value = var.provider == "hcloud" ? hcloud_server.hcloud_server[0].ipv4_address : digitalocean_droplet.do_server[0].ipv4_address
 }
 
 output "ssh_command" {
-  value = "ssh root@${hcloud_server.stacksmith.ipv4_address}"
+  value = "ssh root@${var.provider == "hcloud" ? hcloud_server.hcloud_server[0].ipv4_address : digitalocean_droplet.do_server[0].ipv4_address}"
 }
 
-# Write a deploy script that clones the repo and brings up the stack.
 resource "local_file" "deploy_to_vps" {
-  content = templatefile("${path.module}/deploy-to-vps.sh", {
-    server_ip = hcloud_server.stacksmith.ipv4_address
+  content = templatefile("${path.module}/deploy-to-vps.sh.tpl", {
+    server_ip = var.provider == "hcloud" ? hcloud_server.hcloud_server[0].ipv4_address : digitalocean_droplet.do_server[0].ipv4_address
   })
   filename = "${path.module}/../scripts/deploy-to-vps.sh"
 }

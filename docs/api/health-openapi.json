@@ -1,0 +1,77 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "stacksmith health API",
+    "description": "Health check endpoints for the docubot deployment. Probed by nginx, blackbox, deploy canary, and CI drills.",
+    "version": "1.0.0",
+    "license": {"name": "MIT", "url": "https://github.com/Abolfazlrwm/stacksmith/blob/main/LICENSE"}
+  },
+  "servers": [
+    {"url": "http://localhost:8080", "description": "Local (through nginx)"},
+    {"url": "https://docubot.example.com", "description": "Production"}
+  ],
+  "paths": {
+    "/health/live/": {
+      "get": {
+        "summary": "Liveness probe",
+        "description": "Returns 200 if the process is up. Does not check dependencies.",
+        "operationId": "getHealthLive",
+        "responses": {
+          "200": {
+            "description": "Process is alive",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/LivenessResponse"},
+                "example": {"status": "alive"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready/": {
+      "get": {
+        "summary": "Readiness probe",
+        "description": "Returns 200 if the process is up AND all dependencies respond. Returns 503 if any is down.",
+        "operationId": "getHealthReady",
+        "responses": {
+          "200": {
+            "description": "All dependencies ready",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ReadinessResponse"},
+                "example": {"status": "ready", "checks": {"postgres": "ok", "redis": "ok"}}
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency not ready",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ReadinessResponse"},
+                "example": {"status": "not_ready", "checks": {"postgres": "fail: connection refused", "redis": "ok"}}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "LivenessResponse": {
+        "type": "object",
+        "properties": {"status": {"type": "string", "enum": ["alive"]}},
+        "required": ["status"]
+      },
+      "ReadinessResponse": {
+        "type": "object",
+        "properties": {
+          "status": {"type": "string", "enum": ["ready", "not_ready"]},
+          "checks": {"type": "object", "additionalProperties": {"type": "string"}}
+        },
+        "required": ["status", "checks"]
+      }
+    }
+  }
+}
