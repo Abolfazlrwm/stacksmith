@@ -5,7 +5,9 @@ name: cosign-verify
 # before it can be deployed. This closes the supply-chain loop:
 # sign (cosign-sign) → verify (this workflow) → deploy.
 on:
-  push:
+  workflow_run:
+    workflows: ["cosign-sign"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
   schedule:
