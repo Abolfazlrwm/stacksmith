@@ -6,6 +6,34 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-12-04
+
+Operational maturity: the kit now proves it can survive a total VPS loss
+and verifies its own supply chain end to end.
+
+### Added
+
+- **Phase 10.1** — cosign verify gate. A CI workflow verifies the image
+  signature and SBOM attestation on every push to main and daily at 06:00
+  UTC. Also fixes cosign-sign timing (workflow_run on registry-build
+  completed). ADR-0023.
+- **Phase 10.2** — Disaster recovery drill. Six-phase total VPS loss
+  simulation: seed data, encrypt backup, destroy everything (containers +
+  volumes + plaintext), provision fresh stack, restore from encrypted .age,
+  verify data values + app health. ADR-0024.
+- **Phase 10.3** — Automated release notes. Generates changelog sections
+  from conventional commits when a tag is pushed.
+- **Phase 10.4** — Stale bot. Closes issues inactive for 37 days and PRs
+  inactive for 21 days. Exempts pinned and roadmap labels.
+
+### Proven in CI (21 workflows)
+
+All previous 17 plus:
+- cosign verify (signature + SBOM attestation)
+- disaster recovery drill (total VPS loss)
+- stale bot (daily)
+- release notes (on tag)
+
 ## [0.5.0] — 2026-11-30
 
 Supply chain, infrastructure as code, and chaos engineering.
