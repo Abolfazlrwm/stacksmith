@@ -15,15 +15,21 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/app
 
 jobs:
   sign:
     name: cosign sign and attest
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      IMAGE_NAME: ghcr.io/${{ github.repository }}/app
     steps:
       - uses: actions/checkout@v4
+
+      - name: Lowercase image name
+        id: image
+        run: |
+          echo "name=$(echo "$IMAGE_NAME" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
@@ -37,34 +43,33 @@ jobs:
 
       - name: Sign the image with keyless cosign
         run: |
-          DIGEST=$(docker buildx imagetools inspect \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+          IMG="${{ steps.image.outputs.name }}"
+          DIGEST=$(docker buildx imagetools inspect "$IMG:latest" \
             --format '{{json .Manifest.Digest}}' | tr -d '"')
-          echo "Signing digest: $DIGEST"
-          cosign sign --yes \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@$DIGEST
+          echo "Signing $IMG@$DIGEST"
+          cosign sign --yes "$IMG@$DIGEST"
 
       - name: Generate and attach SBOM attestation
         run: |
-          DIGEST=$(docker buildx imagetools inspect \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+          IMG="${{ steps.image.outputs.name }}"
+          DIGEST=$(docker buildx imagetools inspect "$IMG:latest" \
             --format '{{json .Manifest.Digest}}' | tr -d '"')
-          # Generate SBOM with syft, attach as a cosign attestation.
           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh \
             | sh -s -- -b /usr/local/bin
-          syft ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@$DIGEST -o spdx-json > sbom.spdx.json
+          syft "$IMG@$DIGEST" -o spdx-json > sbom.spdx.json
           cosign attest --yes --predicate sbom.spdx.json \
-            --type spdxjson \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@$DIGEST
+            --type spdxjson "$IMG@$DIGEST"
           echo "SBOM attestation attached"
 
       - name: Verify the signature
         run: |
-          DIGEST=$(docker buildx imagetools inspect \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+          IMG="${{ steps.image.outputs.name }}"
+          DIGEST=$(docker buildx imagetools inspect "$IMG:latest" \
             --format '{{json .Manifest.Digest}}' | tr -d '"')
           cosign verify --yes \
-            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/.+" \
-            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@$DIGEST
+            --certificate-identity-regexp \
+            "https://github.com/${{ github.repository }}/.github/.+" \
+            --certificate-oidc-issuer \
+            "https://token.actions.githubusercontent.com" \
+            "$IMG@$DIGEST"
           echo "Signature verified"

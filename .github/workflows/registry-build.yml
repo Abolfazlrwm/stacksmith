@@ -19,15 +19,21 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/app
 
 jobs:
   build:
     name: build and push (amd64 + arm64)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      IMAGE_NAME: ghcr.io/${{ github.repository }}/app
     steps:
       - uses: actions/checkout@v4
+
+      - name: Lowercase image name
+        id: image
+        run: |
+          echo "name=$(echo "$IMAGE_NAME" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU for cross-platform builds
         uses: docker/setup-qemu-action@v3
@@ -47,7 +53,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ steps.image.outputs.name }}
           tags: |
             type=ref,event=branch
             type=sha,prefix=sha-,format=short
@@ -73,7 +79,7 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-name: ${{ steps.image.outputs.name }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
