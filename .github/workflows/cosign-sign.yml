@@ -63,6 +63,9 @@ jobs:
             --type spdxjson "$IMG@$DIGEST"
           echo "SBOM attestation attached"
 
+      - name: Wait for registry propagation
+        run: sleep 15
+
       - name: Verify the signature
         run: |
           IMG="${{ steps.image.outputs.name }}"
