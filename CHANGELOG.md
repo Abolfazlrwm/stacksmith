@@ -6,6 +6,42 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-12-15
+
+**Stable release.** The operational surface is declared stable (ADR-0031).
+
+### What this release is
+
+stacksmith v1.0.0 is the culmination of 14 phases across 9 previous
+releases. It is a production-grade deployment kit that puts the docubot
+backend (Django 5.2 + Celery + Postgres/pgvector + Redis) into production
+on a single VPS with:
+
+- Zero-downtime blue-green deploys with canary checks and auto-rollback
+- Encrypted backups with age, integrity-verified, freshness-monitored
+- Disaster recovery drill that simulates total VPS loss
+- Full observability: Prometheus, Grafana (5 dashboards), Loki, Tempo,
+  Alertmanager with Slack routing
+- Supply chain: multi-arch GHCR images, cosign signing, SBOM, CodeQL,
+  Trivy, dependency review
+- Automated TLS, secret rotation, maintenance mode, capacity planning
+- Multi-provider Terraform (Hetzner + DigitalOcean)
+- 31 ADRs, 23 CI workflows, 18 operational scripts, 4 runbooks
+- OpenAPI spec, architecture documentation with 5 Mermaid diagrams
+
+### What this release declares stable
+
+- Script CLIs (deploy, rollback, backup, restore, rotate, maintenance)
+- Compose service names and volumes
+- CI workflow contract (23 workflows)
+- ADR set (31 decisions)
+
+### What is NOT declared stable
+
+- The docubot application (separate repo, separate stability)
+- Multi-host HA (ADR-0015 — evaluation only)
+- Business-endpoint load tests (only /health/live/ is tested)
+
 ## [0.9.0] — 2026-12-14
 
 Operational excellence: maintenance mode, recording rules, health CLI,
