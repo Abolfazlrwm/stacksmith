@@ -113,6 +113,23 @@ services:
       start_period: 20s
     logging: *logdriver
 
+  # nginx-exporter scrapes the /stub_status endpoint exposed by nginx
+  # and serves Prometheus-format metrics on :9113. This is the SLI
+  # source the SLO dashboard (ADR-0033, ADR-0034) depends on. Lives in
+  # the prod compose (not monitoring) because it is part of the
+  # production deployment unit and must start *after* nginx via
+  # depends_on, which only works when both services are in the same
+  # compose file. prometheus (in monitoring compose) scrapes it.
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.3.0
+    command:
+      - -nginx.scrape-uri=http://nginx:80/stub_status
+    depends_on:
+      nginx:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *logdriver
+
 volumes:
   pgdata:
     name: stacksmith_pgdata

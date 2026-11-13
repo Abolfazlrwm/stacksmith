@@ -4,6 +4,10 @@
 services:
   prometheus:
     image: prom/prometheus:latest
+    ports:
+      # Bound to localhost so CI drills can query it from the host
+      # without exposing it on the public interface.
+      - "127.0.0.1:9090:9090"
     volumes:
       - ./monitoring:/etc/prometheus:ro
       - prometheus_data:/prometheus
@@ -41,6 +45,11 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
     restart: unless-stopped
+
+  # nginx-exporter lives in docker-compose.prod.yml (with depends_on
+  # nginx) so it starts only after nginx is healthy and the DNS name
+  # "nginx" is resolvable. prometheus scrapes it at nginx-exporter:9113
+  # — the shared default network makes the name reachable from here.
 
   blackbox:
     image: prom/blackbox-exporter:latest

@@ -2,7 +2,7 @@
   "title": "Stacksmith — SLO and error budget",
   "uid": "stacksmith-slo",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "30s",
   "time": {"from": "now-7d", "to": "now"},
   "tags": ["stacksmith", "slo"],
@@ -10,16 +10,11 @@
   "panels": [
     {
       "id": 1,
-      "title": "Availability SLO (99.5% target, 30d)",
+      "title": "Availability (99.5% SLO, 30d)",
       "type": "stat",
       "datasource": {"type": "prometheus", "uid": "Prometheus"},
       "gridPos": {"h": 6, "w": 8, "x": 0, "y": 0},
-      "targets": [
-        {
-          "expr": "1 - (sum(rate(nginx_http_requests_total{status=~\"5..\"}[30d])) / clamp_min(sum(rate(nginx_http_requests_total[30d])), 1))",
-          "refId": "A"
-        }
-      ],
+      "targets": [{"expr": "slo:availability_30d", "refId": "A"}],
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
@@ -37,25 +32,20 @@
     },
     {
       "id": 2,
-      "title": "Error budget remaining (hours, 30d window)",
+      "title": "Error budget used (0 = full, 1 = empty)",
       "type": "stat",
       "datasource": {"type": "prometheus", "uid": "Prometheus"},
       "gridPos": {"h": 6, "w": 8, "x": 8, "y": 0},
-      "targets": [
-        {
-          "expr": "clamp_min((0.005 - (sum(rate(nginx_http_requests_total{status=~\"5..\"}[30d])) / clamp_min(sum(rate(nginx_http_requests_total[30d])), 1))) * 30 * 24, 0)",
-          "refId": "A"
-        }
-      ],
+      "targets": [{"expr": "slo:error_budget_used_ratio", "refId": "A"}],
       "fieldConfig": {
         "defaults": {
-          "unit": "h",
+          "unit": "percentunit",
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"color": "red", "value": null},
-              {"color": "yellow", "value": 12},
-              {"color": "green", "value": 36}
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.7},
+              {"color": "red", "value": 0.95}
             ]
           }
         }
@@ -64,92 +54,71 @@
     },
     {
       "id": 3,
-      "title": "P99 latency (target < 500ms)",
+      "title": "Request rate (req/s, nginx-exporter)",
       "type": "stat",
       "datasource": {"type": "prometheus", "uid": "Prometheus"},
       "gridPos": {"h": 6, "w": 8, "x": 16, "y": 0},
-      "targets": [
-        {
-          "expr": "histogram_quantile(0.99, sum(rate(nginx_http_request_duration_seconds_bucket[5m])) by (le))",
-          "refId": "A"
-        }
-      ],
+      "targets": [{"expr": "nginx:request_rate_5m", "refId": "A"}],
       "fieldConfig": {
         "defaults": {
-          "unit": "s",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {"color": "green", "value": null},
-              {"color": "yellow", "value": 0.3},
-              {"color": "red", "value": 0.5}
-            ]
-          }
+          "unit": "reqps",
+          "thresholds": {"steps": [{"color": "green"}, {"color": "yellow", "value": 100}]}
         }
       },
       "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
     },
     {
       "id": 4,
-      "title": "Request rate by status class (5m)",
+      "title": "Availability probe (5m average)",
       "type": "timeseries",
       "datasource": {"type": "prometheus", "uid": "Prometheus"},
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
       "targets": [
         {
-          "expr": "sum(rate(nginx_http_requests_total[5m])) by (status)",
+          "expr": "slo:availability_5m",
           "refId": "A",
-          "legendFormat": "{{status}}"
-        }
-      ],
-      "fieldConfig": {"defaults": {"unit": "reqps"}}
-    },
-    {
-      "id": 5,
-      "title": "5xx ratio (5m, fast-burn threshold 2%)",
-      "type": "timeseries",
-      "datasource": {"type": "prometheus", "uid": "Prometheus"},
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
-      "targets": [
-        {
-          "expr": "sum(rate(nginx_http_requests_total{status=~\"5..\"}[5m])) / clamp_min(sum(rate(nginx_http_requests_total[5m])), 1)",
-          "refId": "A",
-          "legendFormat": "5xx ratio"
+          "legendFormat": "probe success"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "thresholds": {"steps": [{"color": "green"}, {"color": "red", "value": 0.02}]}
+          "min": 0,
+          "max": 1,
+          "thresholds": {"steps": [{"color": "red"}, {"color": "green", "value": 0.995}]}
         }
       }
     },
     {
+      "id": 5,
+      "title": "Request rate through nginx (5m)",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+      "targets": [
+        {
+          "expr": "nginx:request_rate_5m",
+          "refId": "A",
+          "legendFormat": "req/s"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "reqps"}}
+    },
+    {
       "id": 6,
-      "title": "Latency percentile bands (5m)",
+      "title": "nginx connections (active/reading/writing/waiting)",
       "type": "timeseries",
       "datasource": {"type": "prometheus", "uid": "Prometheus"},
       "gridPos": {"h": 8, "w": 24, "x": 0, "y": 14},
       "targets": [
-        {
-          "expr": "histogram_quantile(0.50, sum(rate(nginx_http_request_duration_seconds_bucket[5m])) by (le))",
-          "refId": "p50",
-          "legendFormat": "p50"
-        },
-        {
-          "expr": "histogram_quantile(0.95, sum(rate(nginx_http_request_duration_seconds_bucket[5m])) by (le))",
-          "refId": "p95",
-          "legendFormat": "p95"
-        },
-        {
-          "expr": "histogram_quantile(0.99, sum(rate(nginx_http_request_duration_seconds_bucket[5m])) by (le))",
-          "refId": "p99",
-          "legendFormat": "p99"
-        }
+        {"expr": "nginx_connections_active", "refId": "active", "legendFormat": "active"},
+        {"expr": "nginx_connections_reading", "refId": "reading", "legendFormat": "reading"},
+        {"expr": "nginx_connections_writing", "refId": "writing", "legendFormat": "writing"},
+        {"expr": "nginx_connections_waiting", "refId": "waiting", "legendFormat": "waiting"}
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "s",
+          "unit": "short",
           "custom": {"drawStyle": "line", "lineInterpolation": "smooth"}
         }
       }
