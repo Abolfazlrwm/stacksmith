@@ -9,8 +9,9 @@ What works today is proven in CI. What does not is listed here, honestly.
   `nginx/certs/`, uncomment the block, and reload nginx. There is no
   automated cert renewal pipeline.
 - **No log aggregation.** Logs are json-file on each container, read with
-  `docker compose logs`. There is no Loki, Elasticsearch, or equivalent.
-  ADR-0004 explains why; Loki is on the v0.2 roadmap.
+  `docker compose logs`. ~~There is no Loki, Elasticsearch, or equivalent.
+  ADR-0004 explains why; Loki is on the v0.2 roadmap.~~ Closed by
+  ADR-0009 (see "Recently closed" below).
 - **No canary checks post-switch.** `deploy.sh` switches 100% of traffic
   to the new color immediately. ~~There is no 1%-then-10%-then-100% ramp.
   Canary checks are on the v0.2 roadmap.~~ Closed by ADR-0008 (see
@@ -31,6 +32,13 @@ What works today is proven in CI. What does not is listed here, honestly.
 
 ## Recently closed
 
+- **Log aggregation** (closed 2026-11-13, ADR-0009). Loki and promtail
+  are now part of the monitoring overlay. promtail scrapes docker
+  container logs via the socket, parses the JSON lines Django emits,
+  and ships them to Loki. Loki stores 14 days of logs. Grafana gains a
+  Loki datasource and a "container logs" dashboard with service and
+  level template variables. Metrics stay primary (ADR-0004); logs are
+  the secondary signal, queryable from the same dashboard.
 - **Canary checks post-switch** (closed 2026-11-12, ADR-0008).
   `deploy.sh` now runs `CANARY_PROBES` (default 5) health probes through
   nginx after switching the upstream. If any probe fails, the upstream
