@@ -33,8 +33,75 @@ make smoke             # run the local smoke path
    ```
 
 4. Commit with [Conventional Commits](https://www.conventionalcommits.org/).
-   The body should say *why*, not restate the diff.
-5. Push and open a pull request.
+   The body should say *why*, not restate the diff. See the format rules
+   below — CI will reject messages that do not match.
+5. Push and open a pull request whose title also follows the format.
+
+## Commit message format
+
+Every commit and every PR title must match:
+
+```
+type(scope): subject
+
+optional body, wrapped at 100 chars
+
+optional footer
+```
+
+- **type** is required and must be one of: `feat`, `fix`, `docs`, `style`,
+  `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+- **scope** is optional, lowercase when present (`deploy`, `ci`, `ops`).
+- **subject** is imperative mood (`add`, not `added`), no trailing period,
+  max 72 chars. Lower-case is preferred but not enforced, so technical
+  identifiers (`ADR-0032`, `GHCR`, `cosign`, `v1.0`) stay readable.
+- **breaking change**: use the `!` marker (`feat(deploy)!: drop Docker 20.x`)
+  or a `BREAKING CHANGE:` footer with an explanation.
+
+Examples:
+
+```
+feat(deploy): cosign verify before switching upstream
+
+deploy.sh now checks for cosign and a GHCR image before starting the
+target. If both are present, it verifies the image signature. Graceful
+degradation: local builds skip the check.
+
+fix(ci): remove unsupported --yes flag from cosign verify
+docs(adr): ADR-0032 enforce conventional commits
+chore: v1.0.1 — commit convention enforcement
+```
+
+### Local hook (optional but recommended)
+
+Install the local hooks so you get feedback before pushing:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+This runs `commitlint` on every commit message and refuses to push
+branches with leftover `fixup!` or `squash!` commits.
+
+### Enforcement
+
+The `commitlint` workflow runs on every PR:
+
+| Check                       | Tool                                  | Failure mode |
+| --------------------------- | ------------------------------------- | ------------ |
+| PR title format             | `amannn/action-semantic-pull-request` | PR fails     |
+| Every commit on the branch  | `@commitlint/cli`                     | PR fails     |
+
+If a commit fails the check, reword it with:
+
+```bash
+git rebase -i origin/main
+# mark the commit `reword`, edit the message, save, quit
+git push -f
+```
+
+See [ADR-0032](docs/adr/0032-enforce-conventional-commits.md) for the full
+rationale and the list of allowed types.
 
 ## Branch protection on `main`
 
@@ -67,7 +134,7 @@ pull request that must satisfy:
 ## Reporting Issues
 
 Use the issue template. Include steps to reproduce, expected versus actual
-behaviour, and your version (`v0.1.0` or `main @ <sha>`). Check
+behaviour, and your version (`v1.0.0` or `main @ <sha>`). Check
 `docs/known-limitations.md` first — the behaviour may be a documented
 limitation rather than a defect.
 

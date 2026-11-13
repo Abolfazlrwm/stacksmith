@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# .githooks/pre-push — refuse to push leftover `fixup!` or `squash!` commits.
+#
+# These are temp commits created by `git commit --fixup=`. They are meant to
+# be auto-squashed by `git rebase -i --autosquash` before pushing. Pushing
+# one pollutes the linear history and breaks release-drafter categorization.
+#
+# Install with:  git config core.hooksPath .githooks
+set -euo pipefail
+
+remote="$1"
+url="$2"
+z40=0000000000000000000000000000000000000000
+
+while read -r local_ref local_oid remote_ref remote_oid; do
+  # Skip branch deletions.
+  [ "$local_oid" = "$z40" ] && continue
+
+  # Range of commits being pushed: from remote_oid (or empty → root) to local_oid.
+  if [ "$remote_oid" = "$z40" ]; then
+    range="$local_oid"
+    # Limit to last 200 commits on a brand-new branch.
+    list=$(git rev-list --max-count=200 "$local_oid")
+  else
+    range="$remote_oid..$local_oid"
+    list=$(git rev-list "$range")
+  fi
+
+  bad=""
+  for sha in $list; do
+    subject=$(git log --format='%s' -n 1 "$sha")
+    case "$subject" in
+      fixup\!*|squash\!*)
+        bad="$bad
+  $sha  $subject"
+        ;;
+    esac
+  done
+
+  if [ -n "$bad" ]; then
+    echo "[pre-push] REFUSING to push — found leftover fixup!/squash! commits:" >&2
+    echo "$bad" >&2
+    echo "" >&2
+    echo "Run:  git rebase -i --autosquash <parent>" >&2
+    echo "to squash them, or drop them, then push again." >&2
+    exit 1
+  fi
+done
+
+exit 0
