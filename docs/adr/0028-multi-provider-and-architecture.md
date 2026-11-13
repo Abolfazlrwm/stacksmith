@@ -15,6 +15,7 @@ module.
 Rewrite `terraform/main.tf` to support both Hetzner Cloud and DigitalOcean
 via a `provider` variable. The module uses `count` conditionals to
 activate only the selected provider's resources. Both providers get:
+
 - Firewall (SSH 22, HTTP 80, HTTPS 443, monitoring 3000)
 - VPS with cloud-init (Docker + repo clone)
 - Unified outputs (server_ip, ssh_command)
@@ -22,11 +23,18 @@ activate only the selected provider's resources. Both providers get:
 
 ## Rationale
 
-- **`count` over separate modules.** Using `count = var.provider == "hcloud" ? 1 : 0` keeps everything in one file. Separate modules per provider would duplicate the firewall and cloud-init logic.
+- **`count` over separate modules.** Using
+  `count = var.provider == "hcloud" ? 1 : 0` keeps everything in one
+  file. Separate modules per provider would duplicate the firewall and
+  cloud-init logic.
 
-- **Provider-specific defaults.** Hetzner defaults to `cx22` (2 vCPU/4GB) in `nbg1`. DigitalOcean defaults to `s-2vcpu-4gb` in `fra1`. Both are ~$6-8/month.
+- **Provider-specific defaults.** Hetzner defaults to `cx22`
+  (2 vCPU/4GB) in `nbg1`. DigitalOcean defaults to `s-2vcpu-4gb` in
+  `fra1`. Both are ~$6-8/month.
 
-- **Same cloud-init.** Both providers support `user_data` for cloud-init. The same `cloud-init.yml` installs Docker and clones the repo on either provider.
+- **Same cloud-init.** Both providers support `user_data` for
+  cloud-init. The same `cloud-init.yml` installs Docker and clones the
+  repo on either provider.
 
 ## Consequences
 

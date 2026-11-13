@@ -12,6 +12,7 @@ job, a human) has no automated gate that says "this image is signed by
 this repo's CI — safe to deploy".
 
 The supply chain is:
+
 1. **Build** (registry-build) → image in GHCR
 2. **Sign** (cosign-sign) → cosign signature + SBOM attestation
 3. **Verify** (cosign-verify) → confirm the signature is valid ← MISSING
@@ -23,6 +24,7 @@ signature invalid, but nobody notices.
 ## Decision
 
 Add a `cosign-verify.yml` workflow that:
+
 1. Installs cosign.
 2. Logs in to GHCR (read-only).
 3. Verifies the signature on `ghcr.io/.../app:latest` using the
@@ -104,6 +106,7 @@ identity, not to the registry's auth.
 ## Context
 
 Every previous drill tests a single failure mode:
+
 - restore-drill: backup → wipe one row → restore → verify (Phase 3)
 - encryption-drill: encrypt → wipe → restore from encrypted → verify (Phase 6.2)
 - integrity-drill: backup → verify row counts match (Phase 7.2)

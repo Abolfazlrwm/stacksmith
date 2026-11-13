@@ -1,0 +1,38 @@
+---
+name: markdownlint
+
+# Lint every Markdown file in the repo.
+# Catches trailing whitespace, missing code-fence languages, broken
+# heading hierarchy, and overly long lines.
+on:
+  pull_request:
+    paths:
+      - '**/*.md'
+      - '.markdownlint.json'
+      - '.github/workflows/markdownlint.yml'
+  push:
+    branches: [main]
+    paths:
+      - '**/*.md'
+      - '.markdownlint.json'
+
+permissions:
+  contents: read
+
+jobs:
+  markdownlint:
+    name: markdown lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint Markdown files
+        uses: DavidAnson/markdownlint-cli2-action@v18
+        with:
+          globs: |
+            **/*.md
+            !CHANGELOG.md
+            !node_modules/**
+            !commitlint/node_modules/**
+          config: .markdownlint.json

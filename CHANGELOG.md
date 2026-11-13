@@ -6,7 +6,32 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [1.0.1] — 2026-12-16
+## [1.1.0] — 2026-12-19
+
+Quality hardening and SLO observability.
+
+### Added
+
+- **Phase 16.1** — markdownlint. `.markdownlint.json` config +
+  `.github/workflows/markdownlint.yml` CI gate. 16 auto-fixable
+  violations and 14 manual fixes applied across 10 docs files.
+- **Phase 16.2** — SLO / SLI / error budget (ADR-0033). Three alert
+  rules in `monitoring/alert_rules.yml` (fast-burn critical, budget
+  exhausted warning, P99 latency warning). Sixth Grafana dashboard
+  `grafana/dashboards/slo.json` with availability %, error budget
+  hours, latency percentiles.
+- **Phase 16.3** — `docs/adr/INDEX.md` (every ADR by number, status,
+  date, and theme). `docs/getting-started.md` (10-minute path from
+  clone to running monitored stack).
+
+### Changed
+
+- `.gitignore` now excludes `commitlint/node_modules/` and
+  `commitlint/package-lock.json`.
+- `.github/pull_request_template.md` gains an H1 and wraps the long
+  conventional-commits checklist line.
+
+ — 2026-12-16
 
 Commit convention enforcement (ADR-0032).
 

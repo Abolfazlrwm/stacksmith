@@ -134,11 +134,12 @@ OpenAPI 3.0 spec.
 - [Operations](docs/runbooks/operations.md) — daily, weekly, incident paths
 - [Deploy](docs/runbooks/deploy.md) — normal and rollback paths
 - [Backup and restore](docs/runbooks/backup-and-restore.md)
-- [Failure playbook](docs/runbooks/failure-playbook.md) — disk full, OOM, cert expiry, pg fail, nginx fail
+- [Failure playbook](docs/runbooks/failure-playbook.md) — disk full, OOM,
+  cert expiry, pg fail, nginx fail
 
 ## Layout
 
-```
+```text
 .
 ├── docker-compose.prod.yml       # the deployment unit
 ├── docker-compose.monitoring.yml # observability overlay

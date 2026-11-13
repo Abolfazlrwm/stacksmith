@@ -1,3 +1,5 @@
+# Pull request
+
 ## What
 
 <!-- One sentence describing what this PR changes. -->
@@ -8,7 +10,8 @@
 
 ## Checklist
 
-- [ ] The commit messages follow [conventional commits](../docs/conventions.md) (`feat:`, `fix:`, `ci:`, `docs:`, `chore:`)
+- [ ] Commit messages follow [conventional commits](../docs/conventions.md)
+      (`feat:`, `fix:`, `ci:`, `docs:`, `chore:`)
 - [ ] No emojis, no `Co-Authored-By`, no `Generated with` in commit messages
 - [ ] One logical change per commit — no "and also" commits
 - [ ] `yamllint` and `shellcheck` pass locally (`make lint`)
