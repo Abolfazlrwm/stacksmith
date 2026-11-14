@@ -87,7 +87,7 @@ query. If it passes, your local stack is wired correctly.
 | Prometheus  | <http://127.0.0.1:9091>               | (none)          |
 | Alertmanager | <http://127.0.0.1:9094>              | (none)          |
 
-Grafana ships with five dashboards:
+Grafana ships with six dashboards:
 
 - **Services** — per-container CPU, memory, restart count
 - **Business** — request rate, error rate, latency

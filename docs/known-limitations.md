@@ -12,7 +12,8 @@ What works today is proven in CI. What does not is listed here, honestly.
   quarterly via cron) is a manual operator decision.
 - **cosign verify at deploy time.** The cosign signature is verified in
   CI (ADR-0023), but `deploy.sh` does not call `cosign verify` before
-  switching the upstream. A deploy-time verify is on the v0.7 roadmap.
+  switching the upstream. A deploy-time verify was evaluated in ADR-0025
+  and deferred on automation-cost grounds.
 - **Business-endpoint load tests.** The k6 load test covers
   `/health/live/` only. Testing the real docubot API (RAG queries,
   streaming) requires the docubot app, which is not part of this kit.
