@@ -4,10 +4,11 @@ What works today is proven in CI. What does not is listed here, honestly.
 
 ## Not implemented
 
-- **TLS is a template.** The `:443` server block in `nginx/default.conf`
+- **TLS is a template.** ~~The `:443` server block in `nginx/default.conf`
   is commented out. To enable HTTPS, obtain a cert, place it in
   `nginx/certs/`, uncomment the block, and reload nginx. There is no
-  automated cert renewal pipeline.
+  automated cert renewal pipeline.~~ Closed by ADR-0010 (see "Recently
+  closed" below).
 - **No log aggregation.** Logs are json-file on each container, read with
   `docker compose logs`. ~~There is no Loki, Elasticsearch, or equivalent.
   ADR-0004 explains why; Loki is on the v0.2 roadmap.~~ Closed by
@@ -32,6 +33,12 @@ What works today is proven in CI. What does not is listed here, honestly.
 
 ## Recently closed
 
+- **Automated TLS** (closed 2026-11-14, ADR-0010). `docker-compose.tls.yml`
+  runs certbot in a renewal loop (every 12h). `scripts/issue-cert.sh`
+  obtains the first Let's Encrypt cert via the ACME HTTP-01 challenge.
+  The `:443` server block in `nginx/default.conf` is now real, not a
+  template. certbot's `--deploy-hook` reloads nginx after each successful
+  renewal.
 - **Log aggregation** (closed 2026-11-13, ADR-0009). Loki and promtail
   are now part of the monitoring overlay. promtail scrapes docker
   container logs via the socket, parses the JSON lines Django emits,

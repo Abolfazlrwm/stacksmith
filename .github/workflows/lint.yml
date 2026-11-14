@@ -45,8 +45,12 @@ jobs:
       - name: Validate compose files
         run: |
           set -euo pipefail
-          for f in tests/smoke/docker-compose.yml docker-compose.prod.yml docker-compose.monitoring.yml; do
+          for f in tests/smoke/docker-compose.yml \
+            docker-compose.prod.yml docker-compose.monitoring.yml; do
             [ -f "$f" ] || continue
             echo ":: validating $f"
             docker compose -f "$f" config -q
           done
+          # Overlays must be validated with the base file.
+          echo ":: validating docker-compose.prod.yml + docker-compose.tls.yml"
+          docker compose -f docker-compose.prod.yml -f docker-compose.tls.yml config -q
