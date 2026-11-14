@@ -13,7 +13,7 @@ committed to git.
 
 ## Layout
 
-```
+```text
 docs/presentation/
 ├── README.md                          # this file
 ├── slides/                            # source-of-truth
