@@ -29,11 +29,22 @@ scrape_configs:
       - targets: ["cadvisor:8080"]
 
   # nginx-exporter — the SLI source for the SLO dashboard (ADR-0033).
-  # Exposes nginx_connections_active, nginx_http_requests_total,
-  # nginx_http_request_duration_seconds_bucket and friends on :9113.
+  # Exposes nginx_connections_active, nginx_http_requests_total (no
+  # labels), and friends on :9113. Connection-level only.
   - job_name: nginx
     static_configs:
       - targets: ["nginx-exporter:9113"]
+
+  # promtail — the latency SLI source (ADR-0035). promtail's metrics
+  # pipeline stage derives nginx_log_request_duration_seconds
+  # (Histogram, from nginx $request_time in the JSON access log) and
+  # nginx_log_requests_total (Counter, with status label) from the
+  # nginx access log. This is the source that lets us compute P99
+  # latency and a per-status-code error ratio — the two things
+  # stub_status could not give us (ADR-0034).
+  - job_name: promtail
+    static_configs:
+      - targets: ["promtail:9080"]
 
   - job_name: app
     metrics_path: /health/metrics
