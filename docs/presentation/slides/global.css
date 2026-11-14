@@ -1,0 +1,91 @@
+/* StackSmith presentation — dark "ops console" theme.
+   Palette: deep slate background, sky-blue primary, amber accent.
+   Typography tokens only (no pre-baked typography classes). */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* Palette */
+  --bg: #0B1220;
+  --bg-elev: #131C2E;
+  --bg-card: #18233A;
+  --primary: #38BDF8;
+  --primary-dim: #0EA5E9;
+  --accent: #F59E0B;
+  --accent-dim: #D97706;
+  --ok: #34D399;
+  --warn: #FBBF24;
+  --danger: #F87171;
+  --text: #E2E8F0;
+  --text-dim: #94A3B8;
+  --text-mute: #64748B;
+  --line: #1E293B;
+  --line-soft: #243149;
+
+  /* Typography tokens (NO classes — slides apply via inline styles / Tailwind) */
+  --font-heading: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-num: 'JetBrains Mono', 'SF Mono', monospace;
+  --font-cn: 'Inter', system-ui, sans-serif;
+
+  --fs-display: 64px;
+  --fs-h1: 44px;
+  --fs-h2: 32px;
+  --fs-h3: 22px;
+  --fs-body: 17px;
+  --fs-small: 14px;
+  --fs-micro: 12px;
+}
+
+/* Slide canvas — every page is exactly 1280×720, no scroll. */
+.slide {
+  width: 1280px;
+  height: 720px;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  line-height: 1.5;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* Surfaces */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+}
+.card-elev {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+/* Accent emphasis utilities */
+.accent-bar { background: var(--accent); }
+.primary-bar { background: var(--primary); }
+.ok-dot { color: var(--ok); }
+.warn-dot { color: var(--warn); }
+
+/* Subtle grid background for "ops console" feel (optional, opt-in per slide) */
+.grid-bg {
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-position: -1px -1px;
+  opacity: 0.35;
+}
+
+/* Page-number / footer micro chrome */
+.micro {
+  font-family: var(--font-num);
+  font-size: var(--fs-micro);
+  color: var(--text-mute);
+  letter-spacing: 0.08em;
+}
+
+/* Hidden speaker notes container */
+aside[data-notes] { display: none; }

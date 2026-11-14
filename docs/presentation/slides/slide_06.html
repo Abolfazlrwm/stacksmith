@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SLOs — the contract</title>
+<link rel="stylesheet" href="global.css">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; background: #0B1220; }
+  .col-head {
+    font-family: var(--font-num);
+    font-size: 11px;
+    color: var(--text-mute);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .slo-row {
+    display: grid;
+    grid-template-columns: 1.6fr 1.4fr 1fr 1.8fr;
+    align-items: center;
+    padding: 18px 22px;
+    gap: 16px;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-num);
+    font-size: 12px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid;
+  }
+</style>
+</head>
+<body>
+<div class="slide">
+  <div style="position:absolute; inset:0; background-image: linear-gradient(rgba(56,189,248,0.04) 1px, transparent 1px); background-size: 100% 40px;"></div>
+
+  <div style="position:relative; padding: 38px 64px 28px 64px; height:100%; box-sizing:border-box; display:flex; flex-direction:column;">
+
+    <!-- Header -->
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <div style="font-family: var(--font-num); font-size:12px; color:var(--text-dim); letter-spacing:0.2em; text-transform:uppercase;">SERVICE LEVEL OBJECTIVES</div>
+        <h1 style="font-family: var(--font-heading); font-size:40px; color:var(--text); font-weight:600; margin:10px 0 0 0; line-height:1.12;">
+          Three SLOs. Every one wired to an alert.
+        </h1>
+      </div>
+      <div style="font-family: var(--font-num); font-size:12px; color:var(--accent); border:1px solid var(--line-soft); background:var(--bg-card); padding:6px 12px; border-radius:999px; margin-top:6px;">
+        SLO contract
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div style="margin-top:24px; display:flex; flex-direction:column; gap:10px;">
+
+      <!-- Header row -->
+      <div class="slo-row" style="padding: 6px 22px; border-bottom: 1px solid var(--line);">
+        <div class="col-head">SLO</div>
+        <div class="col-head">TARGET</div>
+        <div class="col-head">WINDOW</div>
+        <div class="col-head">ALERT</div>
+      </div>
+
+      <!-- Row 1 -->
+      <div class="card slo-row">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span class="material-icons" style="color:var(--primary); font-size:24px;">verified</span>
+          <span style="font-family: var(--font-heading); font-size:20px; color:var(--text); font-weight:600;">Availability</span>
+        </div>
+        <div style="font-family: var(--font-num); font-size:40px; color:var(--primary); font-weight:600; line-height:1;">99.5%</div>
+        <div style="font-family: var(--font-num); font-size:15px; color:var(--text-dim);">30 days</div>
+        <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-start;">
+          <span class="chip" style="color:var(--danger); border-color:var(--danger); background: rgba(248,113,113,0.08);">SLOAvailabilityDown</span>
+          <span style="font-family: var(--font-body); font-size:12px; color:var(--text-mute);">critical · fast-burn</span>
+        </div>
+      </div>
+
+      <!-- Row 2 -->
+      <div class="card slo-row">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span class="material-icons" style="color:var(--primary); font-size:24px;">speed</span>
+          <span style="font-family: var(--font-heading); font-size:20px; color:var(--text); font-weight:600;">Latency P99</span>
+        </div>
+        <div style="font-family: var(--font-num); font-size:40px; color:var(--primary); font-weight:600; line-height:1;">&lt; 500 ms</div>
+        <div style="font-family: var(--font-num); font-size:15px; color:var(--text-dim);">5 minutes</div>
+        <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-start;">
+          <span class="chip" style="color:var(--warn); border-color:var(--warn); background: rgba(251,191,36,0.08);">SLOLatencyP99Breach</span>
+          <span style="font-family: var(--font-body); font-size:12px; color:var(--text-mute);">warning</span>
+        </div>
+      </div>
+
+      <!-- Row 3 -->
+      <div class="card slo-row">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span class="material-icons" style="color:var(--primary); font-size:24px;">report</span>
+          <span style="font-family: var(--font-heading); font-size:20px; color:var(--text); font-weight:600;">5xx quality</span>
+        </div>
+        <div style="font-family: var(--font-num); font-size:40px; color:var(--primary); font-weight:600; line-height:1;">&lt; 2% ratio</div>
+        <div style="font-family: var(--font-num); font-size:15px; color:var(--text-dim);">5 minutes</div>
+        <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-start;">
+          <span class="chip" style="color:var(--danger); border-color:var(--danger); background: rgba(248,113,113,0.08);">SLOHigh5xxRate</span>
+          <span style="font-family: var(--font-body); font-size:12px; color:var(--text-mute);">critical · fast-burn</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Callout -->
+    <div class="card-elev" style="margin-top:18px; padding:16px 20px; display:flex; align-items:center; gap:16px;">
+      <div style="width:44px; height:44px; border-radius:10px; background: rgba(245,158,11,0.12); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+        <span class="material-icons" style="color:var(--accent); font-size:26px;">pie_chart</span>
+      </div>
+      <div style="font-family: var(--font-body); font-size:15px; color:var(--text); line-height:1.45;">
+        The <span style="font-family:var(--font-num); color:var(--primary);">30-day</span> error budget at <span style="font-family:var(--font-num); color:var(--primary);">99.5%</span> is <span style="font-family:var(--font-num); color:var(--accent); font-weight:600;">~3.6 hours</span> of allowed downtime per month. Both fast-burn (<span style="font-family:var(--font-num);">2-min</span>) and slow-burn (<span style="font-family:var(--font-num);">30-day exhausted</span>) alerts route to Alertmanager with severity routing.
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="position:absolute; bottom:20px; left:56px;" class="micro">06 / 11 · ADR-0033 · ADR-0035</div>
+    <div style="position:absolute; bottom:20px; right:56px;" class="micro">SERVICE LEVEL OBJECTIVES</div>
+  </div>
+</div>
+
+<aside data-notes class="hidden">
+- Three SLOs: Availability 99.5% over 30 days, Latency P99 under 500 ms over 5 min, 5xx under 2% over 5 min.
+- Each SLO is wired to an alert in Alertmanager — availability and 5xx are fast-burn critical, latency is warning.
+- The 30-day error budget at 99.5% is roughly 3.6 hours of allowed downtime per month.
+- Both fast-burn (2-min) and slow-burn (30-day exhausted) alerts route with severity.
+- A deploy that returns 5xx for 30% of requests but keeps the health endpoint green trips SLOHigh5xxRate — it would slip past an outage-only alert.
+</aside>
+</body>
+</html>

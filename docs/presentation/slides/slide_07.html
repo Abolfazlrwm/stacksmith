@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Proven in CI — 27 workflows</title>
+<link rel="stylesheet" href="global.css">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; background: #0B1220; }
+  .drill-card {
+    background: var(--bg-card);
+    border: 1px solid var(--line-soft);
+    border-radius: 12px;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: border-color 0.2s;
+  }
+  .drill-card .wf-name {
+    font-family: var(--font-num);
+    font-size: 14px;
+    color: var(--primary);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .drill-card .desc {
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+</style>
+</head>
+<body>
+<div class="slide">
+  <div style="position:absolute; inset:0; background-image: linear-gradient(rgba(245,158,11,0.03) 1px, transparent 1px); background-size: 100% 36px;"></div>
+
+  <div style="position:relative; padding: 34px 56px 28px 56px; height:100%; box-sizing:border-box; display:flex; flex-direction:column;">
+
+    <!-- Header -->
+    <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+      <div style="flex:1;">
+        <div style="font-family: var(--font-num); font-size:12px; color:var(--text-dim); letter-spacing:0.22em; text-transform:uppercase;">PROVEN IN CI</div>
+        <h1 style="font-family: var(--font-heading); font-size:40px; color:var(--text); font-weight:600; margin:8px 0 0 0; line-height:1.1;">
+          Not slides. Drills that run on every push.
+        </h1>
+      </div>
+      <div style="text-align:right; margin-left:24px;">
+        <div style="font-family: var(--font-num); font-size:56px; color:var(--accent); font-weight:600; line-height:1;">27</div>
+        <div style="font-family: var(--font-body); font-size:13px; color:var(--text-dim); margin-top:4px;">CI workflows</div>
+      </div>
+    </div>
+
+    <!-- Bento grid 3x3 -->
+    <div style="margin-top:22px; display:grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap:12px; flex:1;">
+
+      <div class="drill-card">
+        <div class="wf-name"><span class="material-icons" style="color:var(--text-mute); font-size:18px;">sync</span>deploy.yml</div>
+        <div class="desc">blue→green→blue + canary probes</div>
+      </div>
+
+      <div class="drill-card">
+        <div class="wf-name"><span class="material-icons" style="color:var(--text-mute); font-size:18px;">error_outline</span>canary-failure</div>
+        <div class="desc">break green → auto-rollback</div>
+      </div>
+
+      <div class="drill-card">
+        <div class="wf-name"><span class="material-icons" style="color:var(--text-mute); font-size:18px;">restore</span>restore-drill.yml</div>
+        <div class="desc">backup → wipe → restore → verify</div>
+      </div>
+
+      <div class="drill-card">
+        <div class="wf-name"><span class="material-icons" style="color:var(--text-mute); font-size:18px;">lock</span>encryption-drill</div>
+        <div class="desc">encrypt → restore from .age → verify</div>
+      </div>
+
+      <div class="drill-card" style="border-color: var(--danger); background: rgba(248,113,113,0.05);">
+        <div class="wf-name"><span class="material-icons" style="color:var(--text-mute); font-size:18px;">dangerous</span>disaster-recovery-drill</div>
+        <div class="desc">total VPS loss → encrypted restore → verify</div>
+      </div>
+
+      <div class="drill-card">
+        <div class="wf-name"><span class="material-icons" style="color:var(--text-mute); font-size:18px;">speed</span>latency-sli-drill</div>
+        <div class="desc">nginx log → promtail → prometheus → alerts</div>
+      </div>
+
+      <div class="drill-card">
+        <div class="wf-name"><span class="material-icons" style="color:var(--text-mute); font-size:18px;">monitor_heart</span>slo-metrics-drill</div>
+        <div class="desc">nginx-exporter up · availability SLI · alerts loaded</div>
+      </div>
+
+      <div class="drill-card">
+        <div class="wf-name"><span class="material-icons" style="color:var(--text-mute); font-size:18px;">bolt</span>chaos-drill</div>
+        <div class="desc">kill worker + stop nginx → recover</div>
+      </div>
+
+      <div class="drill-card">
+        <div class="wf-name"><span class="material-icons" style="color:var(--text-mute); font-size:18px;">speed</span>k6 load test</div>
+        <div class="desc">50 VUs · p95 &lt; 500ms</div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div style="position:absolute; bottom:20px; left:56px;" class="micro">07 / 11</div>
+    <div style="position:absolute; bottom:20px; right:56px;" class="micro">PROVEN IN CI</div>
+  </div>
+</div>
+
+<aside data-notes class="hidden">
+- 27 CI workflows run on every push — these are the most important drills, not the full list.
+- deploy.yml does blue→green→blue with canary probes; canary-failure deliberately breaks green to prove auto-rollback.
+- restore-drill, encryption-drill, and disaster-recovery-drill form the backup/DR chain — verified end-to-end.
+- The DR drill destroys the stack on a CI runner and rebuilds from an encrypted backup; if it passes, DR is a tested procedure, not a slide.
+- Latency, SLO metrics, chaos, and k6 load tests keep the operability promises honest on every push.
+</aside>
+</body>
+</html>
