@@ -1,0 +1,36 @@
+# TLS overlay — run with:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.tls.yml up -d
+#
+# Adds port 443 and cert volumes to nginx, and brings up certbot for
+# Let's Encrypt certificate issuance and renewal.
+---
+services:
+  nginx:
+    ports:
+      - "${NGINX_HTTPS_PORT:-8443}:443"
+    volumes:
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./nginx/certbot-www:/var/www/certbot:ro
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - ./nginx/certs:/etc/letsencrypt
+      - ./nginx/certbot-www:/var/www/certbot
+    # Renewal loop: try every 12h. certbot exits 0 (no-op) if certs are
+    # not due for renewal yet. On a successful renewal, reload nginx.
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        set -e
+        while true; do
+          echo "[certbot] attempting renewal at $$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          certbot renew --quiet \
+            --deploy-hook "docker exec $${NGINX_CONTAINER:-stacksmith-nginx-1} nginx -s reload" \
+            || true
+          sleep 12h
+        done
+    restart: unless-stopped
+    environment:
+      - NGINX_CONTAINER=${NGINX_CONTAINER:-stacksmith-nginx-1}

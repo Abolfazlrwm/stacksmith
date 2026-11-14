@@ -12,7 +12,8 @@ __pycache__/
 backups/
 deploy/releases/
 deploy/state/
-nginx/certs/
+nginx/certs/*
+!nginx/certs/.gitkeep
 monitoring/textfile/
 
 # Logs
