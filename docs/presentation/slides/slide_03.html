@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The product — docubot</title>
+<link rel="stylesheet" href="global.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+  .feat-card { width:360px; height:140px; padding:18px 20px; box-sizing:border-box; }
+</style>
+</head>
+<body>
+<div class="slide" style="position:relative; padding:44px 56px;">
+
+  <!-- header -->
+  <div style="font-family: var(--font-num); color: var(--text-dim); font-size:12px; letter-spacing:0.2em; text-transform:uppercase;">THE PRODUCT</div>
+  <div style="font-family: var(--font-heading); color: var(--text); font-size:40px; font-weight:700; line-height:1.12; margin-top:10px;">docubot — the middle ground.</div>
+
+  <!-- lead -->
+  <p style="font-family: var(--font-body); color: var(--text); font-size:18px; line-height:1.55; max-width:960px; margin:16px 0 0 0;">Upload PDFs, Markdown, and plain-text documents, then ask questions of them in a chat interface. Answers are grounded in your own documents via retrieval-augmented generation (RAG) over a <span style="font-family: var(--font-num);">pgvector</span> index — the model cites the source passage for each answer.</p>
+
+  <!-- 3x2 bento grid -->
+  <div style="display:grid; grid-template-columns:repeat(3, 360px); gap:16px; margin-top:24px; justify-content:center;">
+    <!-- 1 -->
+    <div class="card feat-card">
+      <span class="material-icons" style="color: var(--primary); font-size:26px;">forum</span>
+      <div style="font-family: var(--font-heading); color: var(--text); font-size:18px; font-weight:600; margin-top:8px;">Document chat</div>
+      <div style="font-family: var(--font-body); color: var(--text-dim); font-size:14px; line-height:1.4; margin-top:4px;">Natural-language Q&amp;A; answers cite source passages.</div>
+    </div>
+    <!-- 2 -->
+    <div class="card feat-card">
+      <span class="material-icons" style="color: var(--primary); font-size:26px;">manage_search</span>
+      <div style="font-family: var(--font-heading); color: var(--text); font-size:18px; font-weight:600; margin-top:8px;">RAG over <span style="font-family: var(--font-num);">pgvector</span></div>
+      <div style="font-family: var(--font-body); color: var(--text-dim); font-size:14px; line-height:1.4; margin-top:4px;">Postgres-native vector storage. No separate vector DB.</div>
+    </div>
+    <!-- 3 -->
+    <div class="card feat-card">
+      <span class="material-icons" style="color: var(--primary); font-size:26px;">description</span>
+      <div style="font-family: var(--font-heading); color: var(--text); font-size:18px; font-weight:600; margin-top:8px;">Multi-format ingestion</div>
+      <div style="font-family: var(--font-body); color: var(--text-dim); font-size:14px; line-height:1.4; margin-top:4px;">PDF, Markdown, plain text.</div>
+    </div>
+    <!-- 4 -->
+    <div class="card feat-card">
+      <span class="material-icons" style="color: var(--primary); font-size:26px;">shield</span>
+      <div style="font-family: var(--font-heading); color: var(--text); font-size:18px; font-weight:600; margin-top:8px;">Self-hosted</div>
+      <div style="font-family: var(--font-body); color: var(--text-dim); font-size:14px; line-height:1.4; margin-top:4px;">Documents never leave your machine.</div>
+    </div>
+    <!-- 5 -->
+    <div class="card feat-card">
+      <span class="material-icons" style="color: var(--primary); font-size:26px;">group</span>
+      <div style="font-family: var(--font-heading); color: var(--text); font-size:18px; font-weight:600; margin-top:8px;">Multi-user</div>
+      <div style="font-family: var(--font-body); color: var(--text-dim); font-size:14px; line-height:1.4; margin-top:4px;">Per-user collections and chat history.</div>
+    </div>
+    <!-- 6 -->
+    <div class="card feat-card">
+      <span class="material-icons" style="color: var(--primary); font-size:26px;">tune</span>
+      <div style="font-family: var(--font-heading); color: var(--text); font-size:18px; font-weight:600; margin-top:8px;">Model-agnostic</div>
+      <div style="font-family: var(--font-body); color: var(--text-dim); font-size:14px; line-height:1.4; margin-top:4px;">OpenAI, Anthropic, or a local model.</div>
+    </div>
+  </div>
+
+  <!-- footer micro -->
+  <div style="position:absolute; bottom:20px; left:56px;" class="micro">03 / 11</div>
+  <div style="position:absolute; bottom:20px; right:56px;" class="micro">THE PRODUCT</div>
+</div>
+
+<aside data-notes class="hidden">
+  <ul>
+    <li>The only outbound call from the host is the LLM completion; documents never leave the machine.</li>
+    <li>pgvector stores vectors inside Postgres, avoiding a separate vector database to run and back up.</li>
+    <li>RAG answers cite the source passage, keeping responses grounded and auditable.</li>
+    <li>Model-agnostic: works with OpenAI, Anthropic, or a local model.</li>
+  </ul>
+</aside>
+</body>
+</html>

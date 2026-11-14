@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Closing — the difference — StackSmith + docubot</title>
+<link rel="stylesheet" href="global.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  body { margin: 0; background: #0B1220; }
+  .contact-chip {
+    background: #18233A;
+    border: 1px solid #243149;
+    border-radius: 10px;
+    transition: border-color .2s;
+  }
+  .glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.22;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div class="slide relative" style="font-family: var(--font-body);">
+  <!-- subtle grid backdrop -->
+  <div class="grid-bg absolute inset-0 pointer-events-none" style="opacity:.32;"></div>
+
+  <!-- ambient glows for depth (kept inside canvas to avoid bounds overflow) -->
+  <div class="glow" style="width: 360px; height: 360px; background: #38BDF8; top: 0; left: 0; opacity:.18;"></div>
+  <div class="glow" style="width: 300px; height: 300px; background: #F59E0B; bottom: 0; right: 0; opacity:.14;"></div>
+
+  <div class="relative h-full flex flex-col items-center justify-center" style="padding: 48px 80px;">
+
+    <!-- top corner markers (ops-console flavor) -->
+    <div class="absolute" style="top: 36px; left: 56px; font-family: var(--font-num); color: var(--text-mute); font-size: 12px; letter-spacing: 0.2em;">
+      END OF DECK
+    </div>
+    <div class="absolute" style="top: 36px; right: 56px; font-family: var(--font-num); color: var(--text-mute); font-size: 12px; letter-spacing: 0.2em;">
+      STACKSMITH · v1.1.4
+    </div>
+
+    <!-- Eyebrow -->
+    <div style="font-family: var(--font-num); color: var(--text-dim); font-size: 13px; letter-spacing: 0.32em; text-transform: uppercase;">
+      THE DIFFERENCE
+    </div>
+
+    <!-- short accent rule -->
+    <div style="height:2px; background: var(--accent); width: 56px; margin-top: 18px; opacity:.9;"></div>
+
+    <!-- Main statement -->
+    <h1 style="font-family: var(--font-heading); font-size: 40px; line-height: 1.18; color: var(--text); font-weight: 600; max-width: 1000px; text-align: center; margin-top: 24px;">
+      A <span style="color: var(--text-dim);">docker-compose file</span> is not a product you can run.
+      <span style="color: var(--primary);">StackSmith</span> is.
+    </h1>
+
+    <!-- Subtitle -->
+    <p style="font-family: var(--font-body); font-size: 18px; line-height: 1.55; color: var(--text-dim); max-width: 880px; text-align: center; margin-top: 22px;">
+      Backups, SLOs, disaster recovery, supply-chain signing, runbooks — shipped, proven in CI, honest about what is not done.
+    </p>
+
+    <!-- Contact chips -->
+    <div class="flex items-center" style="gap: 16px; margin-top: 38px;">
+      <div class="contact-chip flex items-center" style="padding: 12px 18px; gap: 10px;">
+        <span class="material-icons" style="color: var(--primary); font-size: 18px;">code</span>
+        <span style="font-family: var(--font-num); color: var(--text); font-size: 14px; letter-spacing: 0.02em;">github.com/Abolfazlrwm/stacksmith</span>
+      </div>
+      <div class="contact-chip flex items-center" style="padding: 12px 18px; gap: 10px;">
+        <span class="material-icons" style="color: var(--accent); font-size: 18px;">tag</span>
+        <span style="font-family: var(--font-num); color: var(--text); font-size: 14px; letter-spacing: 0.02em;">release v1.1.4</span>
+      </div>
+      <div class="contact-chip flex items-center" style="padding: 12px 18px; gap: 10px;">
+        <span class="material-icons" style="color: var(--ok); font-size: 18px;">gavel</span>
+        <span style="font-family: var(--font-num); color: var(--text); font-size: 14px; letter-spacing: 0.02em;">MIT licensed</span>
+      </div>
+    </div>
+
+    <!-- bottom thank-you line (constrained width, centered) -->
+    <div class="absolute" style="bottom: 56px; left: 50%; transform: translateX(-50%); width: 600px; text-align: center;">
+      <div style="font-family: var(--font-num); color: var(--text-mute); font-size: 13px; letter-spacing: 0.18em;">
+        Thank you.   ·   Questions?
+      </div>
+    </div>
+
+    <!-- footer micro -->
+    <div class="absolute" style="bottom: 20px; right: 56px;">
+      <div class="micro">11 / 11</div>
+    </div>
+    <div class="absolute" style="bottom: 20px; left: 56px;">
+      <div class="micro">CLOSING</div>
+    </div>
+  </div>
+
+  <aside data-notes class="hidden">
+    <ul>
+      <li>End on the one-line thesis: a docker-compose file is not a runnable product — StackSmith is.</li>
+      <li>Pause after the main statement; let the contrast between "not a product" and "is" land.</li>
+      <li>Reinforce the three proof verbs: shipped, proven in CI, honest about gaps.</li>
+      <li>Invite questions; point listeners to the repo, the v1.1.4 release, and the MIT license.</li>
+      <li>Have demo-script.md and product-overview.md ready to share immediately after.</li>
+    </ul>
+  </aside>
+</div>
+</body>
+</html>
