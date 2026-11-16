@@ -48,6 +48,31 @@ services:
       - ./monitoring/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
     restart: unless-stopped
 
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+      - "127.0.0.1:9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml.tmpl:ro
+      - alertmanager_data:/alertmanager
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        sed "s|__SLACK_WEBHOOK_URL__|$${SLACK_WEBHOOK_URL}|g; s|__ALERT_EMAIL_TO__|$${ALERT_EMAIL_TO}|g" \
+          /etc/alertmanager/alertmanager.yml.tmpl > /tmp/alertmanager.yml
+        exec alertmanager --config.file=/tmp/alertmanager.yml --storage.path=/alertmanager
+    environment:
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+      - ALERT_EMAIL_TO=${ALERT_EMAIL_TO:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9093/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   grafana:
     image: grafana/grafana:latest
     env_file: .env
@@ -101,3 +126,4 @@ volumes:
   grafana_data:
   loki_data:
   promtail_data:
+  alertmanager_data:
