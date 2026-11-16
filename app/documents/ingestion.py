@@ -1,0 +1,115 @@
+"""Text extraction and chunking.
+
+Pure functions, no Django imports, so they can be unit-tested in isolation.
+"""
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Iterable
+
+# A chunk is roughly 512 tokens. With our simple token heuristic (4 chars ≈ 1
+# token) that is ~2000 characters. We overlap chunks by ~10% to keep passages
+# that straddle a boundary retrievable.
+CHUNK_CHARS = 2000
+CHUNK_OVERLAP = 200
+
+
+@dataclass
+class ExtractedText:
+    text: str
+    kind: str
+
+
+def extract_pdf(data: bytes) -> str:
+    """Extract plain text from a PDF using PyMuPDF."""
+    import fitz  # PyMuPDF — imported lazily so the app starts even if the
+                # wheel is missing (CI drills run without it).
+    text_parts: list[str] = []
+    with fitz.open(stream=data, filetype="pdf") as doc:
+        for page in doc:
+            text_parts.append(page.get_text("text"))
+    return "\n\n".join(text_parts).strip()
+
+
+def extract_markdown(data: bytes) -> str:
+    """Markdown: strip markup, keep text. We do not render to HTML because
+    we want the *content*, not the rendered structure (headings become
+    plain lines, code blocks stay as text)."""
+    import markdown as md  # lazy import
+
+    raw = data.decode("utf-8", errors="replace")
+    # Convert to HTML, then strip tags. This preserves code blocks and lists
+    # as readable text rather than mangling them.
+    html = md.markdown(raw, extensions=["fenced_code", "tables"])
+    text = re.sub(r"<[^>]+>", "", html)
+    # Collapse excessive whitespace introduced by tag stripping.
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def extract_text(data: bytes) -> str:
+    """Plain text — decode UTF-8, tolerate bad bytes."""
+    return data.decode("utf-8", errors="replace").strip()
+
+
+def extract(data: bytes, kind: str) -> ExtractedText:
+    """Dispatch on kind. Raises ValueError for unknown kinds."""
+    if kind == "pdf":
+        return ExtractedText(extract_pdf(data), "pdf")
+    if kind == "markdown":
+        return ExtractedText(extract_markdown(data), "markdown")
+    if kind == "text":
+        return ExtractedText(extract_text(data), "text")
+    raise ValueError(f"unknown document kind: {kind!r}")
+
+
+def split_chunks(text: str, *, size: int = CHUNK_CHARS,
+                 overlap: int = CHUNK_OVERLAP) -> list[str]:
+    """Split `text` into overlapping chunks of ~`size` characters.
+
+    Splits on paragraph boundaries where possible to avoid cutting sentences
+    mid-word. Falls back to a hard cut if a paragraph is longer than `size`.
+    """
+    if not text:
+        return []
+    # Normalize whitespace runs but keep newlines.
+    text = re.sub(r"[ \t]+", " ", text).strip()
+    chunks: list[str] = []
+    start = 0
+    n = len(text)
+    while start < n:
+        end = start + size
+        if end >= n:
+            chunks.append(text[start:].strip())
+            break
+        # Try to break on the next newline after `end - overlap` so the
+        # chunk ends on a paragraph boundary.
+        boundary = text.rfind("\n", end - overlap, end)
+        if boundary == -1 or boundary <= start:
+            boundary = end
+        chunk = text[start:boundary].strip()
+        if chunk:
+            chunks.append(chunk)
+        # Advance; if we landed on a newline, step past it.
+        start = boundary + (1 if text[boundary:boundary + 1] == "\n" else 0)
+    return chunks
+
+
+def approx_token_count(text: str) -> int:
+    """Cheap token estimate (~4 chars/token for English). Good enough for
+    budget decisions; the real BPE count is not worth a tokenizer dep here."""
+    return max(1, len(text) // 4)
+
+
+def detect_kind(filename: str, mime: str | None = None) -> str:
+    """Best-effort kind detection from a filename."""
+    name = filename.lower()
+    if name.endswith(".pdf") or mime == "application/pdf":
+        return "pdf"
+    if name.endswith((".md", ".markdown")):
+        return "markdown"
+    if name.endswith((".txt", ".text", "")) or (mime and "text/plain" in mime):
+        return "text"
+    raise ValueError(f"cannot determine document kind from {filename!r}")

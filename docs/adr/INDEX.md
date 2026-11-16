@@ -55,6 +55,7 @@ ADR-NNNN: <title>
 | 0033   | [SLO, SLI, and error budget](0033-slo-sli-error-budget.md) | accepted  | 2026-12-18 |
 | 0034   | [nginx exporter and the OSS latency gap](0034-nginx-exporter-and-oss-latency-gap.md) | accepted | 2026-12-22 |
 | 0035   | [latency and 5xx SLI from promtail metrics pipeline](0035-latency-sli-from-promtail-metrics.md) | accepted | 2026-12-22 |
+| 0036   | [docubot — real product surface, not a health-check stub](0036-docubot-real-product-surface.md) | accepted | 2026-11-16 |
 
 ## By theme
 
@@ -64,6 +65,7 @@ ADR-NNNN: <title>
 - **Security and supply chain** — 0005, 0013, 0016, 0017, 0019, 0020, 0023, 0025
 - **Performance** — 0018
 - **Infrastructure** — 0015, 0020, 0028
+- **Product** — 0036
 - **Process and stability** — 0031, 0032
 
 ## Writing a new ADR

@@ -6,6 +6,78 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-11-16
+
+The product catches up to the operations. Through v1.1.x the `app/`
+directory was a Django health-check stub; the README and the deck
+described a document-chat product that did not exist in code. v1.2.0
+ships that product. See ADR-0036 for the architecture.
+
+### Added — the docubot product
+
+- **`documents` app** — upload (PDF / Markdown / plain text), SHA-256
+  dedup, async ingestion via Celery. The `Chunk` model stores each
+  passage with a 384-dim pgvector embedding; an HNSW index makes
+  retrieval sub-millisecond.
+- **`rag` app** — embeddings via `DOCUBOT_EMBED_PROVIDER` (default
+  `local`: sentence-transformers `all-MiniLM-L6-v2` on the VPS, so
+  documents never leave the host; `openai` and `stub` also supported).
+  Retrieval is cosine-distance ANN scoped by owner.
+- **`chat` app** — `POST /api/chat/` retrieves the top-k chunks, passes
+  them as context to the LLM adapter, and returns the answer with
+  structured citations. `DOCUBOT_LLM_PROVIDER` selects OpenAI,
+  Anthropic, a local Ollama instance, or a stub. The system prompt
+  instructs the model to cite `[1]`, `[2]`, … — the view resolves those
+  markers back to the actual chunks.
+- **Single-page chat UI at `/app/`** — self-contained HTML, no build
+  step. Sidebar for upload + document list with live status, main pane
+  for the chat thread with rendered citations.
+- **`make demo`** — `scripts/demo.py` ingests the sample corpus under
+  `tests/demo-corpus/`, waits for ready, asks a sample question, and
+  prints the answer and citations. With stub providers it runs without
+  any model download or LLM credentials.
+- **`tests/load/chat-k6.js`** — k6 load test that POSTs to `/api/chat/`
+  with a pool of questions cycled across iterations. The `load-test`
+  workflow's new `k6-chat` job seeds the corpus and runs k6 with stub
+  providers, asserting P95 < 2.5s and < 5% business failures.
+
+### Added — closes known-limitations gaps
+
+- **cosign verify at deploy time** (closes ADR-0025). The gate already
+  existed in `scripts/deploy.sh`; v1.2 adds `scripts/test_deploy_verify.sh`
+  — a unit test that proves all three branches (verify passes on a
+  signed image, refuses on a tampered image, skips cleanly on a local
+  image) — and a `cosign-at-deploy` CI workflow that runs it on every
+  push.
+- **Business-endpoint load tests** (closes the load-test gap). The k6
+  load test now exercises `POST /api/chat/` end-to-end in addition to
+  `/health/live/`.
+
+### Changed
+
+- `VERSION` → `1.2.0`. Minor bump: new product features, no breaking
+  changes to the operational surface.
+- `app/requirements.txt` extended: djangorestframework, pgvector,
+  sentence-transformers, torch (CPU), PyMuPDF, markdown, openai,
+  anthropic, httpx, django-cors-headers, python-magic.
+- `app/config/settings.py` extended: the three new apps, DRF + CORS
+  config, `DOCUBOT_UPLOAD_ROOT`, templates dir, admin plumbing.
+- `docs/known-limitations.md` — "cosign verify at deploy time" and
+  "business-endpoint load tests" moved from *Not implemented* to
+  *Recently closed*. "Document chat (the docubot product)" added to
+  *Recently closed*.
+- `.env.example` — new `docubot` section documenting every env var the
+  new apps read.
+
+### Operational notes
+
+- The runtime image is larger (sentence-transformers + torch CPU +
+  PyMuPDF add ~800 MB). Acceptable on a single VPS; the local provider
+  can be moved to a sidecar if it becomes a problem.
+- The first ingestion after a fresh deploy downloads the
+  `all-MiniLM-L6-v2` model (~90 MB). Operators who want a
+  cold-start-free deploy can pre-populate the HF cache in the image.
+
 ## [1.1.4] — 2026-12-22
 
 Presentation-readiness pass: fixes the factual errors in the docs

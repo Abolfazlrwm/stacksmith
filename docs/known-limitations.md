@@ -10,13 +10,6 @@ What works today is proven in CI. What does not is listed here, honestly.
 - **No automated secret rotation schedule.** `scripts/rotate-secrets.sh`
   exists and is tested in CI (ADR-0013), but scheduling it (e.g.
   quarterly via cron) is a manual operator decision.
-- **cosign verify at deploy time.** The cosign signature is verified in
-  CI (ADR-0023), but `deploy.sh` does not call `cosign verify` before
-  switching the upstream. A deploy-time verify was evaluated in ADR-0025
-  and deferred on automation-cost grounds.
-- **Business-endpoint load tests.** The k6 load test covers
-  `/health/live/` only. Testing the real docubot API (RAG queries,
-  streaming) requires the docubot app, which is not part of this kit.
 - **Terraform is provider-specific.** The module ships for Hetzner Cloud
   only. Swapping to DigitalOcean or AWS requires changing the provider
   block (ADR-0021).
@@ -35,6 +28,17 @@ What works today is proven in CI. What does not is listed here, honestly.
 
 ## Recently closed
 
+- **cosign verify at deploy time** (closed v1.2.0, ADR-0025). The
+  deploy-time cosign gate in `scripts/deploy.sh` is now proven in CI by a
+  dedicated unit test (`scripts/test_deploy_verify.sh`) that asserts all
+  three branches: verify passes on a signed image, refuses on a tampered
+  image, and skips cleanly on a local image.
+- **Business-endpoint load tests** (closed v1.2.0). The k6 load test now
+  exercises `POST /api/chat/` end-to-end (retrieve + LLM call) in
+  addition to `/health/live/`. See `tests/load/chat-k6.js`.
+- **Document chat (the docubot product)** (closed v1.2.0). The app is no
+  longer a health-check stub: it ships document upload, RAG over
+  pgvector, and a chat API with citations. See ADR-0036.
 - **Disaster recovery** (closed 2026-12-02, ADR-0024). Total VPS loss
   simulation: destroy everything, restore from encrypted backup, verify
   data values and app health.

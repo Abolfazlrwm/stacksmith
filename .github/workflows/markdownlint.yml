@@ -35,4 +35,5 @@ jobs:
             !CHANGELOG.md
             !node_modules/**
             !commitlint/node_modules/**
+            !tests/demo-corpus/**
           config: .markdownlint.json

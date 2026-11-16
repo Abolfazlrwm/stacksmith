@@ -5,6 +5,7 @@
 [![restore drill](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/restore-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/restore-drill.yml)
 [![disaster recovery](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/disaster-recovery-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/disaster-recovery-drill.yml)
 [![latency SLI](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/latency-sli-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/latency-sli-drill.yml)
+[![cosign at deploy](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/cosign-at-deploy.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/cosign-at-deploy.yml)
 [![security](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/codeql.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/codeql.yml)
 [![Release](https://img.shields.io/github/v/release/Abolfazlrwm/stacksmith?sort=semver)](https://github.com/Abolfazlrwm/stacksmith/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -29,8 +30,10 @@ full observability stack (Prometheus, Loki, Tempo, Alertmanager,
 Grafana), encrypted off-host backups, blue-green deploys, signed
 images, and the runbooks + SLOs that make it operable.
 
-> **v1.1.3 — stable.** The operational surface (scripts, compose, CI)
-> is stable. v1.x patches add features without breaking changes.
+> **v1.2.0 — the product catches up to the operations.** Through
+> v1.1.x the `app/` directory was a Django health-check stub; the deck
+> and this README described a document-chat product that did not exist
+> in code. v1.2.0 ships that product. See ADR-0036.
 
 ## Product features (docubot)
 
@@ -69,8 +72,8 @@ adds the SLO/SLI layer:
 |---|---|
 | Scripts (`deploy.sh`, `backup-db.sh`, etc.) | CLI is stable; no breaking changes in v1.x |
 | Compose (`docker-compose.prod.yml`) | Service names and volumes are stable |
-| CI workflows (27) | No workflow removed without a replacement |
-| ADRs (29) | No ADR reversed without a superseding ADR |
+| CI workflows (28) | No workflow removed without a replacement |
+| ADRs (30) | No ADR reversed without a superseding ADR |
 
 ## Maturity model
 
@@ -85,14 +88,15 @@ adds the SLO/SLI layer:
 | Supply chain | ✅ shipped | multi-arch GHCR, cosign sign + verify, build provenance |
 | TLS automation | ✅ shipped | certbot renewal loop |
 | Secret rotation | ✅ shipped | rotation drill (key + password, zero downtime) |
-| Load testing | ✅ shipped | k6 (50 VUs, p95 < 500ms threshold) |
+| Load testing | ✅ shipped | k6 on `/health/live/` (50 VUs, p95 < 500ms) and on `/api/chat/` (10 VUs, p95 < 2.5s, end-to-end RAG) |
 | Chaos engineering | ✅ shipped | kill worker + stop nginx → verify recovery |
 | Infrastructure as code | ✅ shipped | Terraform (Hetzner + DigitalOcean) |
 | Maintenance mode | ✅ shipped | nginx 503 + health probes stay 200 |
 | Capacity planning | ✅ shipped | disk exhaustion prediction dashboard |
 | Audit trail | ✅ shipped | JSON-lines log for deploy/rollback/restore/backup |
+| Document chat (the product) | ✅ shipped | upload → RAG over pgvector → chat with citations; `make demo` proves it end-to-end |
+| cosign verify at deploy time | ✅ shipped | `scripts/test_deploy_verify.sh` proves all three branches of the deploy-time gate |
 | Multi-host HA | 📋 evaluated | ADR-0015 (not shipped; reopens when traffic requires) |
-| Business load tests | 📋 planned | only /health/live/ is load-tested |
 
 ## Quick start
 
@@ -103,6 +107,7 @@ cp .env.example .env          # fill in the required values
 make doctor                   # verify the host is ready
 make up                       # bring the stack up
 bash scripts/stacksmith-health.sh  # one-command health check
+make demo                     # ingest the sample corpus + ask a question
 make backup                   # take a database backup
 ```
 
@@ -128,7 +133,9 @@ see [docs/getting-started.md](docs/getting-started.md).
   → recording rules → SLO alerts loaded
 - **SLO metrics drill** — nginx-exporter up, availability SLI, alert
   rules loaded
-- **Load test** — k6 (50 VUs, p95 < 500ms)
+- **Load test** — k6 on `/health/live/` (50 VUs, p95 < 500ms)
+- **Chat load test** — k6 on `POST /api/chat/` end-to-end (10 VUs, p95 < 2.5s, RAG + citations)
+- **cosign at deploy** — unit test for all three branches of the deploy-time verify gate
 - **CodeQL** — semantic code analysis
 - **Trivy** — container CVE scan
 - **SBOM** — syft + grype
@@ -184,6 +191,7 @@ are intentionally not renumbered. See
 - [ADR-0033: SLO, SLI, and error budget](docs/adr/0033-slo-sli-error-budget.md)
 - [ADR-0034: nginx exporter and the OSS latency gap](docs/adr/0034-nginx-exporter-and-oss-latency-gap.md)
 - [ADR-0035: latency and 5xx SLI from promtail metrics pipeline](docs/adr/0035-latency-sli-from-promtail-metrics.md)
+- [ADR-0036: docubot — real product surface, not a health-check stub](docs/adr/0036-docubot-real-product-surface.md)
 
 ## Runbooks
 

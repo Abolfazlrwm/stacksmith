@@ -9,3 +9,35 @@ opentelemetry-instrumentation-django==0.66b2
 opentelemetry-instrumentation-psycopg==0.66b2
 opentelemetry-instrumentation-redis==0.66b2
 opentelemetry-instrumentation-celery==0.66b2
+
+# REST API for the chat + documents endpoints.
+djangorestframework==3.18.3
+
+# --- docubot: document ingestion + RAG + chat (v1.2.0) ---
+
+# Text extraction from PDF / Markdown / plain text.
+PyMuPDF==1.24.10
+markdown==3.7
+
+# Local embeddings — runs on the same VPS as the app, no API call.
+# all-MiniLM-L6-v2 (~90 MB) is downloaded on first use.
+sentence-transformers==5.4.1
+# CPU-only torch wheel; no CUDA. Keeps the runtime image small.
+# --no-deps avoids pulling a second torch copy; transformers pins its own.
+torch==2.4.1
+
+# pgvector integration for Django models (provides VectorField + CosineDistance).
+pgvector==0.3.6
+
+# LLM provider clients — chat supports OpenAI, Anthropic, or a local
+# Ollama endpoint. Only one is required at runtime; pick via env var.
+openai==1.54.3
+anthropic==0.39.0
+httpx==0.27.2
+
+# CORS for the single-page chat UI served from the same origin in prod
+# but potentially from a different origin during local development.
+django-cors-headers==4.5.0
+
+# MIME-type sniffing for uploaded files.
+python-magic==0.4.27
