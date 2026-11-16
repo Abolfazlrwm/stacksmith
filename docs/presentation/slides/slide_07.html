@@ -112,7 +112,7 @@
 </div>
 
 <aside data-notes class="hidden">
-- 27 CI workflows run on every push — these are the most important drills, not the full list.
+- 28 CI workflows run on every push — these are the most important drills, not the full list.
 - deploy.yml does blue→green→blue with canary probes; canary-failure deliberately breaks green to prove auto-rollback.
 - restore-drill, encryption-drill, and disaster-recovery-drill form the backup/DR chain — verified end-to-end.
 - The DR drill destroys the stack on a CI runner and rebuilds from an encrypted backup; if it passes, DR is a tested procedure, not a slide.

@@ -97,5 +97,5 @@ its bundled font stack.
 ## Versioning
 
 The deck tracks `VERSION` at the repo root. When `VERSION` bumps, update the
-`v1.1.4 · stable` tags on slide 01 and the cover/release chips on slide 11,
+`v1.2.0 · stable` tags on slide 01 and the cover/release chips on slide 11,
 then cut a release with the rebuilt artifacts attached.
