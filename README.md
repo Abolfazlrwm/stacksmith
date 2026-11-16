@@ -7,6 +7,7 @@
 [![latency SLI](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/latency-sli-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/latency-sli-drill.yml)
 [![cosign at deploy](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/cosign-at-deploy.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/cosign-at-deploy.yml)
 [![security](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/codeql.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/codeql.yml)
+[![unit](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/unit.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/unit.yml)
 [![Release](https://img.shields.io/github/v/release/Abolfazlrwm/stacksmith?sort=semver)](https://github.com/Abolfazlrwm/stacksmith/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 

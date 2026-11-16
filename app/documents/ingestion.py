@@ -104,12 +104,22 @@ def approx_token_count(text: str) -> int:
 
 
 def detect_kind(filename: str, mime: str | None = None) -> str:
-    """Best-effort kind detection from a filename."""
+    """Best-effort kind detection from a filename.
+
+    Extensionless names (README, Makefile, ...) are treated as plain
+    text; anything else that is not pdf/md/txt raises so the upload view
+    can reject it with a 400 instead of silently ingesting binary bytes
+    as text. (Before 2026-11-17 the final raise was unreachable: the
+    text branch matched every filename via `endswith("")`, so a .zip or
+    .csv upload produced garbage chunks instead of an error.)
+    """
     name = filename.lower()
     if name.endswith(".pdf") or mime == "application/pdf":
         return "pdf"
     if name.endswith((".md", ".markdown")):
         return "markdown"
-    if name.endswith((".txt", ".text", "")) or (mime and "text/plain" in mime):
+    if name.endswith((".txt", ".text")) or (mime and "text/plain" in mime):
+        return "text"
+    if "." not in name:
         return "text"
     raise ValueError(f"cannot determine document kind from {filename!r}")

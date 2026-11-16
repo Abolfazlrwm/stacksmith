@@ -1,0 +1,38 @@
+---
+name: unit
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  django-app:
+    name: Django app unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install the unit-test dependency subset
+        # torch and sentence-transformers are multi-hundred-MB wheels and
+        # are lazy imports by design (see rag/embeddings.py); the unit
+        # suite exercises the embedding layer through its documented stub
+        # provider, so the heavy wheels are deliberately not installed
+        # here. DB-backed behavior is covered by the smoke stack and the
+        # drill workflows; this job proves the pure logic layers.
+        run: |
+          grep -vE '^(torch|sentence-transformers)==' app/requirements.txt > /tmp/reqs.txt
+          python -m pip install -r /tmp/reqs.txt pytest==8.3.3
+
+      - name: Run the unit suite
+        run: python -m pytest app/tests -v --tb=short
