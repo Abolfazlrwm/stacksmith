@@ -4,7 +4,7 @@
 PROD := docker compose -f docker-compose.prod.yml
 STUB := docker compose -f tests/smoke/docker-compose.yml
 
-.PHONY: help up down logs ps deploy rollback backup restore doctor lint smoke smoke-stub
+.PHONY: help up down logs ps deploy rollback backup restore doctor lint smoke smoke-stub demo
 
 help: ## list available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -50,3 +50,6 @@ smoke-stub: ## quick stub stack smoke
 	$(STUB) up -d --wait
 	@curl -fsS http://127.0.0.1:8080/health && echo ""
 	$(STUB) down --remove-orphans
+
+demo: ## ingest the sample corpus and run a query through the chat API
+	@python3 scripts/demo.py

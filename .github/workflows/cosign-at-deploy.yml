@@ -1,0 +1,32 @@
+---
+name: cosign-at-deploy
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Proves the cosign-verify gate in scripts/deploy.sh fires correctly:
+# verifies on a signed image, refuses on a tampered image, and skips on a
+# local image. A fast unit test — no real cosign, no real image, no docker.
+jobs:
+  cosign-gate-test:
+    name: cosign verify gate at deploy time
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run the deploy-verify unit test
+        run: bash scripts/test_deploy_verify.sh
+
+      - name: Assert the verify branch exists in deploy.sh
+        # Guard against the gate being silently removed from deploy.sh.
+        run: |
+          grep -q "cosign verify" scripts/deploy.sh
+          grep -q "refusing to deploy" scripts/deploy.sh
+          echo "cosign-at-deploy gate present in scripts/deploy.sh"

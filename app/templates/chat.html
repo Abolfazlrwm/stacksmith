@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>docubot — chat over your documents</title>
+<style>
+  :root {
+    --bg: #0B1220;
+    --bg-elev: #131C2E;
+    --bg-card: #18233A;
+    --primary: #38BDF8;
+    --primary-dim: #0EA5E9;
+    --accent: #F59E0B;
+    --ok: #34D399;
+    --text: #E2E8F0;
+    --text-dim: #94A3B8;
+    --text-mute: #64748B;
+    --line: #1E293B;
+    --font-h: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+    --font-b: 'Inter', system-ui, sans-serif;
+    --font-m: 'JetBrains Mono', 'SF Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: var(--font-b); font-size: 15px; line-height: 1.55;
+    display: grid; grid-template-columns: 320px 1fr; height: 100vh;
+  }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  /* sidebar */
+  aside {
+    background: var(--bg-elev); border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  .brand {
+    padding: 18px 20px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .brand .dot {
+    width: 10px; height: 10px; border-radius: 50%; background: var(--primary);
+    box-shadow: 0 0 12px var(--primary);
+  }
+  .brand h1 { margin: 0; font-family: var(--font-h); font-size: 18px; font-weight: 600; }
+  .brand .ver { font-family: var(--font-m); font-size: 11px; color: var(--text-mute); margin-left: auto; }
+
+  .sidebar-section { padding: 16px 20px; border-bottom: 1px solid var(--line); }
+  .sidebar-section h2 {
+    margin: 0 0 10px; font-family: var(--font-m); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim);
+    font-weight: 500;
+  }
+
+  /* upload */
+  .drop {
+    border: 1px dashed var(--line); border-radius: 8px; padding: 14px;
+    text-align: center; cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .drop:hover, .drop.drag { border-color: var(--primary); background: rgba(56,189,248,0.06); }
+  .drop p { margin: 0; font-size: 13px; color: var(--text-dim); }
+  .drop .ico { font-size: 20px; color: var(--primary); margin-bottom: 6px; }
+  .drop input { display: none; }
+
+  /* document list */
+  .docs { list-style: none; padding: 0; margin: 8px 0 0; max-height: 220px; overflow-y: auto; }
+  .docs li {
+    padding: 8px 10px; border-radius: 6px; margin-bottom: 4px;
+    display: flex; align-items: center; gap: 8px; font-size: 13px;
+  }
+  .docs li .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .docs li .badge {
+    font-family: var(--font-m); font-size: 10px; padding: 2px 6px; border-radius: 4px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .badge.ready { background: rgba(52,211,153,0.15); color: var(--ok); }
+  .badge.pending, .badge.ingesting { background: rgba(245,158,11,0.15); color: var(--accent); }
+  .badge.failed { background: rgba(248,113,113,0.15); color: #F87171; }
+
+  .owner-box { margin-top: auto; padding: 14px 20px; border-top: 1px solid var(--line); }
+  .owner-box label { display: block; font-family: var(--font-m); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 6px; }
+  .owner-box input {
+    width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+    color: var(--text); padding: 8px 10px; font-family: var(--font-m); font-size: 13px;
+  }
+
+  /* chat */
+  main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  header.topbar {
+    padding: 16px 24px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 16px;
+  }
+  header.topbar h2 { margin: 0; font-family: var(--font-h); font-size: 20px; font-weight: 600; }
+  header.topbar .meta { margin-left: auto; font-family: var(--font-m); font-size: 12px; color: var(--text-dim); }
+
+  .thread { flex: 1; overflow-y: auto; padding: 24px; }
+  .msg { margin-bottom: 18px; max-width: 780px; }
+  .msg .who { font-family: var(--font-m); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 4px; }
+  .msg.user .who { color: var(--primary); }
+  .msg.assistant .who { color: var(--accent); }
+  .msg .bubble { background: var(--bg-card); border: 1px solid var(--line);
+    border-radius: 10px; padding: 12px 16px; }
+  .msg.user .bubble { background: rgba(56,189,248,0.06); border-color: rgba(56,189,248,0.2); }
+  .msg .bubble p { margin: 0 0 8px; }
+  .msg .bubble p:last-child { margin: 0; }
+  .msg .bubble code { font-family: var(--font-m); font-size: 13px; background: var(--bg); padding: 1px 4px; border-radius: 3px; }
+
+  .citations {
+    margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .citations .cite-label {
+    font-family: var(--font-m); font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--text-mute); margin-bottom: 4px;
+  }
+  .citation {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+    padding: 8px 10px; font-size: 12px;
+  }
+  .citation .cite-head {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;
+  }
+  .citation .cite-num {
+    font-family: var(--font-m); font-size: 10px; color: var(--primary);
+    background: rgba(56,189,248,0.1); padding: 1px 6px; border-radius: 3px;
+  }
+  .citation .cite-score { font-family: var(--font-m); font-size: 10px; color: var(--text-mute); }
+  .citation .cite-title { font-weight: 500; color: var(--text); }
+  .citation .cite-snip { color: var(--text-dim); margin-top: 4px; }
+
+  .empty {
+    text-align: center; padding: 60px 20px; color: var(--text-dim);
+  }
+  .empty h3 { font-family: var(--font-h); font-weight: 500; color: var(--text); margin: 0 0 8px; }
+
+  /* composer */
+  .composer {
+    border-top: 1px solid var(--line); padding: 16px 24px;
+    display: flex; gap: 10px; align-items: flex-end; background: var(--bg-elev);
+  }
+  .composer textarea {
+    flex: 1; resize: none; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 8px; color: var(--text); padding: 10px 12px;
+    font-family: var(--font-b); font-size: 14px; line-height: 1.5; min-height: 44px; max-height: 160px;
+  }
+  .composer textarea:focus { outline: none; border-color: var(--primary); }
+  .composer button {
+    background: var(--primary); color: #0B1220; border: 0; border-radius: 8px;
+    padding: 10px 18px; font-family: var(--font-h); font-weight: 600; font-size: 14px;
+    cursor: pointer; transition: background .15s;
+  }
+  .composer button:disabled { background: var(--text-mute); cursor: not-allowed; }
+  .composer button:hover:not(:disabled) { background: var(--primary-dim); }
+
+  .pending { opacity: 0.6; }
+  .pending .who::after { content: " · typing…"; color: var(--text-mute); }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+</head>
+<body>
+
+<aside>
+  <div class="brand">
+    <span class="dot"></span>
+    <h1>docubot</h1>
+    <span class="ver">v1.2.0</span>
+  </div>
+
+  <div class="sidebar-section">
+    <h2>Upload document</h2>
+    <label class="drop" id="drop">
+      <div class="ico">⬆</div>
+      <p>Drop a PDF, Markdown, or .txt file<br><span style="color:var(--text-mute)">or click to browse</span></p>
+      <input type="file" id="file" accept=".pdf,.md,.markdown,.txt,.text">
+    </label>
+  </div>
+
+  <div class="sidebar-section" style="flex:1; overflow:hidden; display:flex; flex-direction:column;">
+    <h2>Your documents</h2>
+    <ul class="docs" id="docs"><li style="color:var(--text-mute); font-size:12px;">No documents yet</li></ul>
+  </div>
+
+  <div class="owner-box">
+    <label for="owner">Owner (X-Docubot-Owner)</label>
+    <input id="owner" value="anonymous">
+  </div>
+</aside>
+
+<main>
+  <header class="topbar">
+    <h2>Chat</h2>
+    <span class="meta" id="meta">Retrieval: pgvector · top-5 · cosine</span>
+  </header>
+
+  <div class="thread" id="thread">
+    <div class="empty">
+      <h3>Ask a question about your documents</h3>
+      <p>Upload a document on the left, wait for it to become <span style="color:var(--ok)">ready</span>, then ask away.<br>Answers cite the source passages.</p>
+    </div>
+  </div>
+
+  <form class="composer" id="form">
+    <textarea id="q" placeholder="Ask docubot…" rows="1" autofocus></textarea>
+    <button type="submit" id="send">Send</button>
+  </form>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const thread = $("thread");
+const docsEl = $("docs");
+const ownerEl = $("owner");
+
+function owner() { return ownerEl.value.trim() || "anonymous"; }
+
+function escapeHtml(s) {
+  const d = document.createElement("div"); d.textContent = s; return d.innerHTML;
+}
+
+function renderEmpty() {
+  thread.innerHTML = `<div class="empty"><h3>Ask a question about your documents</h3>
+    <p>Upload a document on the left, wait for it to become <span style="color:var(--ok)">ready</span>, then ask away.<br>Answers cite the source passages.</p></div>`;
+}
+
+function appendUser(text) {
+  const empty = thread.querySelector(".empty");
+  if (empty) empty.remove();
+  const div = document.createElement("div");
+  div.className = "msg user";
+  div.innerHTML = `<div class="who">you</div><div class="bubble"><p>${escapeHtml(text)}</p></div>`;
+  thread.appendChild(div);
+  thread.scrollTop = thread.scrollHeight;
+  return div;
+}
+
+function appendPending() {
+  const div = document.createElement("div");
+  div.className = "msg assistant pending";
+  div.id = "pending-msg";
+  div.innerHTML = `<div class="who">docubot</div><div class="bubble"><p>…</p></div>`;
+  thread.appendChild(div);
+  thread.scrollTop = thread.scrollHeight;
+  return div;
+}
+
+function appendAssistant(answer, citations, model, retrieved) {
+  const pending = $("pending-msg");
+  if (pending) pending.remove();
+  const div = document.createElement("div");
+  div.className = "msg assistant";
+  let citesHtml = "";
+  if (citations && citations.length) {
+    citesHtml = `<div class="citations"><div class="cite-label">${retrieved} retrieved · ${citations.length} cited</div>`;
+    citations.forEach((c, i) => {
+      citesHtml += `<div class="citation">
+        <div class="cite-head"><span class="cite-num">[${i+1}]</span><span class="cite-score">${(c.score*100).toFixed(0)}% match</span></div>
+        <div class="cite-title">${escapeHtml(c.document_title)} · chunk #${c.ordinal}</div>
+        <div class="cite-snip">${escapeHtml(c.snippet)}</div>
+      </div>`;
+    });
+    citesHtml += `</div>`;
+  }
+  const modelLine = model ? `<div style="font-family:var(--font-m); font-size:10px; color:var(--text-mute); margin-top:6px;">via ${escapeHtml(model)}</div>` : "";
+  div.innerHTML = `<div class="who">docubot</div><div class="bubble"><p>${escapeHtml(answer)}</p>${citesHtml}${modelLine}</div>`;
+  thread.appendChild(div);
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function appendError(msg) {
+  const pending = $("pending-msg");
+  if (pending) pending.remove();
+  const div = document.createElement("div");
+  div.className = "msg assistant";
+  div.innerHTML = `<div class="who">docubot</div><div class="bubble" style="border-color:#F87171;"><p style="color:#FCA5A5;">${escapeHtml(msg)}</p></div>`;
+  thread.appendChild(div);
+  thread.scrollTop = thread.scrollHeight;
+}
+
+async function send(question) {
+  appendUser(question);
+  appendPending();
+  try {
+    const r = await fetch("/api/chat/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Docubot-Owner": owner() },
+      body: JSON.stringify({ question, top_k: 5 }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+    appendAssistant(data.answer, data.citations, data.model, data.retrieved_count);
+  } catch (e) {
+    appendError(e.message);
+  }
+}
+
+$("form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const q = $("q").value.trim();
+  if (!q) return;
+  $("q").value = "";
+  $("q").style.height = "auto";
+  send(q);
+});
+
+$("q").addEventListener("input", function() {
+  this.style.height = "auto";
+  this.style.height = Math.min(this.scrollHeight, 160) + "px";
+});
+
+// --- documents ---
+async function refreshDocs() {
+  try {
+    const r = await fetch("/api/documents/", { headers: { "X-Docubot-Owner": owner() } });
+    const data = await r.json();
+    if (!data.length) {
+      docsEl.innerHTML = `<li style="color:var(--text-mute); font-size:12px;">No documents yet</li>`;
+      return;
+    }
+    docsEl.innerHTML = data.map(d => `
+      <li>
+        <span class="name" title="${escapeHtml(d.title)}">${escapeHtml(d.title)}</span>
+        <span class="badge ${d.status}">${d.status}</span>
+      </li>`).join("");
+  } catch (e) {
+    docsEl.innerHTML = `<li style="color:#FCA5A5; font-size:12px;">failed to load</li>`;
+  }
+}
+
+async function uploadFile(file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("title", file.name.replace(/\.[^.]+$/, ""));
+  try {
+    const r = await fetch("/api/documents/", {
+      method: "POST",
+      headers: { "X-Docubot-Owner": owner() },
+      body: fd,
+    });
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({}));
+      throw new Error(e.detail || `HTTP ${r.status}`);
+    }
+    refreshDocs();
+    // Poll a few times to show status transitions.
+    let tries = 0;
+    const iv = setInterval(() => {
+      refreshDocs();
+      if (++tries > 12) clearInterval(iv);
+    }, 5000);
+  } catch (e) {
+    alert("Upload failed: " + e.message);
+  }
+}
+
+$("file").addEventListener("change", (e) => {
+  const f = e.target.files[0];
+  if (f) uploadFile(f);
+  e.target.value = "";
+});
+
+const drop = $("drop");
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, (e) => {
+  e.preventDefault(); drop.classList.add("drag");
+}));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, (e) => {
+  e.preventDefault(); drop.classList.remove("drag");
+}));
+drop.addEventListener("drop", (e) => {
+  const f = e.dataTransfer.files[0];
+  if (f) uploadFile(f);
+});
+
+ownerEl.addEventListener("change", refreshDocs);
+refreshDocs();
+</script>
+</body>
+</html>

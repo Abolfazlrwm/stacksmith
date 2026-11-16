@@ -45,3 +45,67 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose -f docker-compose.prod.yml down --remove-orphans -v
+
+  k6-chat:
+    name: k6 load test — chat endpoint (RAG)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write CI .env with stub LLM + embeddings
+        # Use stub providers so the load test runs without LLM credentials
+        # or the sentence-transformers model download. The stub LLM returns a
+        # deterministic answer that cites [1]; the stub embeddings are
+        # hash-based so retrieval still returns real chunks. This exercises
+        # the full chat pipeline (JSON → retrieve → respond → persist)
+        # without external calls.
+        run: |
+          cp .env.example .env
+          sed -i 's/DJANGO_SECRET_KEY=.*/DJANGO_SECRET_KEY=ci-chat-secret/' .env
+          sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci-chat-pass/' .env
+          sed -i 's/DJANGO_ALLOWED_HOSTS=.*/DJANGO_ALLOWED_HOSTS=*/' .env
+          sed -i 's/NGINX_HTTP_PORT=.*/NGINX_HTTP_PORT=8091/' .env
+          {
+            echo "DOCUBOT_LLM_PROVIDER=stub"
+            echo "DOCUBOT_EMBED_PROVIDER=stub"
+            echo "DOCUBOT_UPLOAD_ROOT=/data/uploads"
+          } >> .env
+
+      - name: Bring up the stack
+        run: docker compose -f docker-compose.prod.yml up -d --build --wait
+
+      - name: Verify the stack is serving
+        run: |
+          curl -fsS http://127.0.0.1:8091/health/live/ | grep -q '"alive"'
+
+      - name: Install k6
+        run: |
+          curl -sSfL https://github.com/grafana/k6/releases/download/v0.57.0/k6-v0.57.0-linux-amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin --strip-components=1 k6-v0.57.0-linux-amd64/k6
+          k6 version
+
+      - name: Seed the corpus for the load-test owner
+        # Ingest the demo corpus under the same owner k6 will target, so
+        # retrieval finds chunks. We use the stub providers so this is fast
+        # and needs no model download.
+        env:
+          DOCUBOT_HOST: http://127.0.0.1:8091
+          DOCUBOT_LLM_PROVIDER: stub
+          DOCUBOT_EMBED_PROVIDER: stub
+        run: |
+          pip install --quiet httpx
+          python3 scripts/demo.py --host "$DOCUBOT_HOST" --owner loadtest \
+            "What is docubot?" || true
+
+      - name: Run k6 chat load test
+        run: |
+          K6_BASE_URL=http://127.0.0.1:8091 K6_OWNER=loadtest k6 run tests/load/chat-k6.js
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.prod.yml logs --no-color || true
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down --remove-orphans -v
