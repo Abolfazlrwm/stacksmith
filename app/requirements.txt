@@ -17,7 +17,7 @@ djangorestframework==3.18.3
 
 # Text extraction from PDF / Markdown / plain text.
 PyMuPDF==1.24.10
-markdown==3.7
+markdown==3.8.1
 
 # Local embeddings — runs on the same VPS as the app, no API call.
 # all-MiniLM-L6-v2 (~90 MB) is downloaded on first use.
