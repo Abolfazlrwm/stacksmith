@@ -1,0 +1,134 @@
+---
+name: alerts-drill
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  alerts-drill:
+    name: alertmanager → webhook → verify delivery
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write CI .env
+        run: |
+          cp .env.example .env
+          sed -i 's/DJANGO_SECRET_KEY=.*/DJANGO_SECRET_KEY=ci-test-secret-key-not-for-production-0123456789/' .env
+          sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci-test-password/' .env
+          sed -i 's/DJANGO_ALLOWED_HOSTS=.*/DJANGO_ALLOWED_HOSTS=*/' .env
+          sed -i 's/NGINX_HTTP_PORT=.*/NGINX_HTTP_PORT=8086/' .env
+          sed -i 's|SLACK_WEBHOOK_URL=.*|SLACK_WEBHOOK_URL=http://webhook-receiver:5001/hook|' .env
+
+      - name: Create webhook receiver
+        run: |
+          mkdir -p /tmp/webhook-receiver
+          cat > /tmp/webhook-receiver/server.py << 'PYEOF'
+          import http.server
+          class H(http.server.BaseHTTPRequestHandler):
+              def do_POST(self):
+                  n = int(self.headers.get('Content-Length', 0))
+                  body = self.rfile.read(n).decode()
+                  with open('/data/webhook.log', 'a') as f:
+                      f.write(body + '\n')
+                  self.send_response(200)
+                  self.end_headers()
+              def log_message(self, *a):
+                  pass
+          http.server.HTTPServer(('0.0.0.0', 5001), H).serve_forever()
+          PYEOF
+          cat > /tmp/webhook-receiver/Dockerfile << 'DEOF'
+          FROM python:3-slim
+          COPY server.py /server.py
+          CMD ["python3", "/server.py"]
+          DEOF
+
+      - name: Bring up the stack and the monitoring overlay
+        run: |
+          docker compose -f docker-compose.prod.yml up -d --build --wait
+          docker compose -f docker-compose.monitoring.yml up -d
+
+      - name: Start the webhook receiver on the monitoring network
+        run: |
+          docker build -t webhook-receiver /tmp/webhook-receiver
+          # The monitoring overlay shares the stacksmith_default network.
+          docker run -d --name webhook-receiver \
+            --network stacksmith_default \
+            -v /tmp:/data \
+            webhook-receiver
+          sleep 2
+          docker logs webhook-receiver 2>&1 | tail -5
+          echo "webhook receiver started"
+
+      - name: Wait for Alertmanager to be healthy
+        run: |
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:9093/-/healthy 2>/dev/null || echo 000)
+            if [ "$code" = "200" ]; then
+              echo "alertmanager healthy after ${i}s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "alertmanager did not become healthy"
+          docker compose -f docker-compose.monitoring.yml logs alertmanager
+          exit 1
+
+      - name: Fire a test alert via the Alertmanager API
+        run: |
+          set -euo pipefail
+          curl -s -X POST http://127.0.0.1:9093/api/v2/alerts \
+            -H 'Content-Type: application/json' \
+            -d '[{
+              "labels": {
+                "alertname": "DrillTestAlert",
+                "severity": "critical",
+                "service": "ci"
+              },
+              "annotations": {
+                "summary": "CI drill test alert",
+                "description": "Fired by the alerts-drill workflow to verify delivery."
+              },
+              "startsAt": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"
+            }]'
+          echo "alert posted"
+
+      - name: Wait for the webhook to receive the alert
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 20); do
+            if [ -f /tmp/webhook.log ] && grep -q "DrillTestAlert" /tmp/webhook.log; then
+              echo "webhook received the alert after ${i}s"
+              cat /tmp/webhook.log
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "webhook never received the alert"
+          echo "--- /tmp/webhook.log ---"
+          cat /tmp/webhook.log 2>/dev/null || echo "(empty)"
+          echo "--- alertmanager logs ---"
+          docker compose -f docker-compose.monitoring.yml logs alertmanager 2>&1 | tail -10
+          echo "--- webhook receiver logs ---"
+          docker logs webhook-receiver 2>&1 | tail -10
+          exit 1
+
+      - name: Dump logs on failure
+        if: failure()
+        run: |
+          docker compose -f docker-compose.monitoring.yml logs --no-color || true
+          docker compose -f docker-compose.prod.yml logs --no-color || true
+          docker logs webhook-receiver 2>&1 || true
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker rm -f webhook-receiver 2>/dev/null || true
+          docker compose -f docker-compose.monitoring.yml down --remove-orphans -v || true
+          docker compose -f docker-compose.prod.yml down --remove-orphans -v || true
