@@ -24,7 +24,7 @@ markdown==3.7
 sentence-transformers==5.4.1
 # CPU-only torch wheel; no CUDA. Keeps the runtime image small.
 # --no-deps avoids pulling a second torch copy; transformers pins its own.
-torch==2.4.1
+torch==2.13.0
 
 # pgvector integration for Django models (provides VectorField + CosineDistance).
 pgvector==0.3.6
