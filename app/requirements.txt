@@ -21,7 +21,7 @@ markdown==3.7
 
 # Local embeddings — runs on the same VPS as the app, no API call.
 # all-MiniLM-L6-v2 (~90 MB) is downloaded on first use.
-sentence-transformers==5.4.1
+sentence-transformers==5.6.0
 # CPU-only torch wheel; no CUDA. Keeps the runtime image small.
 # --no-deps avoids pulling a second torch copy; transformers pins its own.
 torch==2.4.1
