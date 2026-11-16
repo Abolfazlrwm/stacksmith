@@ -156,7 +156,7 @@ firewall rules).
 See [docs/api/health-openapi.json](docs/api/health-openapi.json) for the
 OpenAPI 3.0 spec.
 
-## Architecture decisions (29 ADRs)
+## Architecture decisions (30 ADRs)
 
 ADR numbers are non-contiguous — gaps (0021/22, 0024, 0026/27, 0029)
 are drafts that were merged into adjacent ADRs before publication and
@@ -219,7 +219,7 @@ are intentionally not renumbered. See
 ├── terraform/                    # multi-provider VPS provisioning
 ├── deploy/systemd/               # backup timer + service units
 └── docs/
-    ├── adr/                      # 29 ADRs
+    ├── adr/                      # 30 ADRs
     ├── runbooks/                 # 4 runbooks
     ├── architecture.md           # 5 Mermaid diagrams
     ├── api/                      # OpenAPI 3.0 spec
