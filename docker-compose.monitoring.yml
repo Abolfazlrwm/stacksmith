@@ -59,12 +59,12 @@ services:
     command:
       - -c
       - |
-        sed "s|__SLACK_WEBHOOK_URL__|$${SLACK_WEBHOOK_URL}|g; s|__ALERT_EMAIL_TO__|$${ALERT_EMAIL_TO}|g" \
+        SLACK="$${SLACK_WEBHOOK_URL:-http://127.0.0.1:9999/noop}"
+        sed "s|__SLACK_WEBHOOK_URL__|$$SLACK|g" \
           /etc/alertmanager/alertmanager.yml.tmpl > /tmp/alertmanager.yml
         exec alertmanager --config.file=/tmp/alertmanager.yml --storage.path=/alertmanager
     environment:
       - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
-      - ALERT_EMAIL_TO=${ALERT_EMAIL_TO:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9093/-/healthy"]
