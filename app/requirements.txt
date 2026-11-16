@@ -11,7 +11,7 @@ opentelemetry-instrumentation-redis==0.66b2
 opentelemetry-instrumentation-celery==0.66b2
 
 # REST API for the chat + documents endpoints.
-djangorestframework==3.15.2
+djangorestframework==3.18.3
 
 # --- docubot: document ingestion + RAG + chat (v1.2.0) ---
 
@@ -21,7 +21,7 @@ markdown==3.7
 
 # Local embeddings — runs on the same VPS as the app, no API call.
 # all-MiniLM-L6-v2 (~90 MB) is downloaded on first use.
-sentence-transformers==3.2.1
+sentence-transformers==5.4.1
 # CPU-only torch wheel; no CUDA. Keeps the runtime image small.
 # --no-deps avoids pulling a second torch copy; transformers pins its own.
 torch==2.4.1
