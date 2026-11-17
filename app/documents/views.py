@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import os
-from pathlib import Path
+from pathlib import Path, PurePath
 
 from django.conf import settings
 from django.http import HttpRequest
@@ -19,8 +19,14 @@ from rest_framework import serializers, status
 from rest_framework.generics import ListCreateAPIView
 from rest_framework.response import Response
 
-from .ingestion import detect_kind
+from .ingestion import validate_upload
 from .models import Document
+
+
+# Cap the uploaded filename length so a malicious client cannot send a
+# 10MB filename string. The stored bytes are keyed by checksum, so the
+# filename only matters for display + extension allow-listing.
+MAX_FILENAME_LEN = 255
 
 
 class DocumentSerializer(serializers.ModelSerializer):
@@ -53,7 +59,24 @@ class DocumentListCreateView(ListCreateAPIView):
         ser = DocumentCreateSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         upload = ser.validated_data["file"]
-        title = ser.validated_data.get("title") or Path(upload.name).stem
+
+        # Reject path-traversal payloads and absurdly long names BEFORE
+        # any disk I/O. We do not trust the client's filename for
+        # storage (we key by checksum) but we still echo it back in the
+        # response, so it must be a bare filename, not a path.
+        name = upload.name or ""
+        if not name or len(name) > MAX_FILENAME_LEN:
+            return Response(
+                {"detail": f"filename must be 1..{MAX_FILENAME_LEN} chars"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if PurePath(name).name != name or "/" in name or "\\" in name:
+            return Response(
+                {"detail": "filename must not contain path separators"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        title = ser.validated_data.get("title") or Path(name).stem
 
         # Read fully into memory — these are text documents, not videos.
         # A 50 MB cap is enforced at the web server; here we just hash+store.
@@ -69,8 +92,10 @@ class DocumentListCreateView(ListCreateAPIView):
                 status=status.HTTP_200_OK,
             )
 
+        # Validate BEFORE writing to disk — extension allow-list + magic
+        # bytes. (ADR-0016.) Raises ValueError with a user-facing message.
         try:
-            kind = detect_kind(upload.name, getattr(upload, "content_type", None))
+            kind = validate_upload(name, data)
         except ValueError as exc:
             return Response({"detail": str(exc)},
                             status=status.HTTP_400_BAD_REQUEST)
@@ -91,7 +116,7 @@ class DocumentListCreateView(ListCreateAPIView):
             owner=owner,
             title=title,
             kind=kind,
-            source=upload.name,
+            source=name,
             checksum=checksum,
             byte_size=len(data),
             status=Document.Status.PENDING,
