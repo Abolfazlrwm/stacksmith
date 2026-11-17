@@ -109,14 +109,19 @@ def detect_kind(filename: str, mime: str | None = None) -> str:
     The view has already enforced an extension allow-list before we get
     here (see documents.views.DocumentListCreateView), so this function
     only maps the (already-validated) extension to a kind string. The
-    fallback to `text` is kept for callers that pass a bare stem.
+    fallback to a bare stem (no extension) is kept for callers that
+    pass a Makefile-style name with a text/plain mime.
     """
     name = filename.lower()
     if name.endswith(".pdf") or mime == "application/pdf":
         return "pdf"
     if name.endswith((".md", ".markdown")):
         return "markdown"
-    if name.endswith((".txt", ".text", "")) or (mime and "text/plain" in mime):
+    # NOTE: do NOT add "" to the endswith tuple — `str.endswith("")`
+    # always returns True, which would silently accept any unknown
+    # extension (e.g. evil.exe) as text. The mime fallback below
+    # handles genuinely extension-less files.
+    if name.endswith((".txt", ".text")) or (mime and "text/plain" in mime):
         return "text"
     raise ValueError(f"cannot determine document kind from {filename!r}")
 
