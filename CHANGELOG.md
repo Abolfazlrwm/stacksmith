@@ -23,12 +23,21 @@ See ADR-0037 for the threat model.
   `CsrfViewMiddleware` and `XFrameOptionsMiddleware` added as
   defense-in-depth for the admin and future session views.
 - **`SECURE_*` headers** are now set by the app, not just the proxy:
-  `SECURE_PROXY_SSL_HEADER`, `SECURE_SSL_REDIRECT`, HSTS (1 year,
-  preload, include-subdomains), `SECURE_CONTENT_TYPE_NOSNIFF`,
-  `SECURE_REFERRER_POLICY`, `X_FRAME_OPTIONS=DENY`. HSTS is disabled
-  in local dev so a curl to `http://localhost` does not redirect.
-- **`/health/*` exempt from the SSL redirect** so the in-container
-  readiness probe can reach the app over plain HTTP.
+  `SECURE_PROXY_SSL_HEADER`, HSTS (1 year, preload, include-subdomains),
+  `SECURE_CONTENT_TYPE_NOSNIFF`, `SECURE_REFERRER_POLICY`,
+  `X_FRAME_OPTIONS=DENY`. HSTS is disabled in local dev so a curl to
+  `http://localhost` does not see HSTS (it would have no effect anyway
+  over plain HTTP, but disabling it keeps dev curl output clean).
+- **`SECURE_SSL_REDIRECT` is now opt-in, default off.** A previous
+  revision of this release turned it on when `DEBUG=false`, which broke
+  every container drill: the in-container readiness probe and the
+  blue/green canary probe hit the app over plain HTTP (nginx has not
+  terminated TLS at that point), so the redirect made every probe see
+  `301` forever and the stack never reported healthy. Operators turn
+  it on with `DJANGO_SSL_REDIRECT=true` only when the app is directly
+  internet-facing.
+- **`/health/*` exempt from the SSL redirect** as belt-and-suspenders,
+  so even with the redirect on, probes still work.
 
 ### Changed — upload validation
 

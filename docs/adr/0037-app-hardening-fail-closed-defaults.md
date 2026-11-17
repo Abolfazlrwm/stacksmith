@@ -43,13 +43,25 @@ Operators override via `DJANGO_ALLOWED_HOSTS`; the local-dev value
 already exists in `.env.example`. The wildcard is gone.
 
 `SecurityMiddleware` is the first middleware. `SECURE_PROXY_SSL_HEADER`
-reads `X-Forwarded-Proto` (set by nginx). `SECURE_SSL_REDIRECT` and
-HSTS (1 year, preload, include-subdomains) are enabled when
-`DEBUG=false`. `SECURE_CONTENT_TYPE_NOSNIFF`, `SECURE_REFERRER_POLICY`,
-and `X_FRAME_OPTIONS=DENY` are set on every response. HSTS is
-disabled in local dev so a `curl http://localhost` does not
-infinite-redirect. `/health/*` is exempt from the SSL redirect so the
-in-container readiness probe can reach the app over plain HTTP.
+reads `X-Forwarded-Proto` (set by nginx). HSTS (1 year, preload,
+include-subdomains), `SECURE_CONTENT_TYPE_NOSNIFF`,
+`SECURE_REFERRER_POLICY`, and `X_FRAME_OPTIONS=DENY` are set on every
+response — these are response-header-only and cannot break a health
+probe. HSTS is disabled in local dev (`DEBUG=true`) because it has no
+effect over plain HTTP and a clean dev curl is nicer than one that
+gets a `Strict-Transport-Security` header it will never use.
+
+`SECURE_SSL_REDIRECT` is **off by default and opt-in**. A previous
+revision of this release turned it on when `DEBUG=false`, but that
+broke every container drill: the in-container readiness probe and the
+blue/green canary probe hit the app over plain HTTP (nginx has not
+terminated TLS at that point in the deploy sequence), so the redirect
+made every probe see `301` forever and the stack never reported
+healthy. The redirect is now controlled by `DJANGO_SSL_REDIRECT=true`
+and is intended for the rare case where the app is directly
+internet-facing. `/health/*` is exempt from the redirect as
+belt-and-suspenders, so even with the redirect on, the probe still
+sees a `200`.
 
 `CsrfViewMiddleware` and `XFrameOptionsMiddleware` are added as
 defense-in-depth. The chat and documents APIs are not CSRF-protected

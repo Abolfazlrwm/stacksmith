@@ -67,24 +67,36 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
-# --- Security headers (ADR-0016) -------------------------------------
+# --- Security headers (ADR-0016, ADR-0037) ---------------------------
 # The reverse proxy (nginx) sets these too, but the app must not rely on
 # the proxy alone — the canary probe and any direct port-8000 access
 # (local dev, the readiness probe inside the container network) should
 # also see hardened responses. Defense-in-depth.
 #
-# Behind nginx in prod, X-Forwarded-Proto=https is set by the proxy
-# (see nginx/default.conf) so SECURE_PROXY_SSL_HEADER correctly reports
-# the original scheme. In local dev without TLS, DEBUG=true disables
-# HSTS so a curl to http://localhost does not get an infinite redirect.
+# HSTS, content-type nosniff, referrer policy, and X-Frame-Options are
+# safe to set unconditionally: they only affect response headers, never
+# request routing, so they cannot break a health probe.
+#
+# SECURE_SSL_REDIRECT is the dangerous one: it issues a 301 to https://
+# for every http:// request. The in-container readiness probe and the
+# blue/green canary probe hit the app over plain HTTP (the proxy has
+# not terminated TLS yet at that point), so a redirect there makes the
+# probe see 301 forever and the stack never reports healthy.
+#
+# Default: off. Operators turn it on explicitly with
+# DJANGO_SSL_REDIRECT=true in environments where the app is directly
+# internet-facing (rare; normally nginx handles the redirect).
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-SECURE_SSL_REDIRECT = not DEBUG
+SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SSL_REDIRECT", "false").lower() == "true"
 SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0  # 1 year, prod only
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
-SECURE_REDIRECT_EXEMPT = [r"^/health/.*$"]  # probes must not redirect
+# Belt and suspenders: even if an operator turns SSL redirect on,
+# health probes must not be redirected (the in-container probe is
+# always plain HTTP, regardless of the prod scheme).
+SECURE_REDIRECT_EXEMPT = [r"^/health/"]
 X_FRAME_OPTIONS = "DENY"
 
 # DRF — no per-credential auth yet; the reverse proxy sets X-Docubot-Owner
