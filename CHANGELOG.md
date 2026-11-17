@@ -6,6 +6,67 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.1] — 2026-11-17
+
+The hardening release. v1.2.0 shipped the product; v1.2.1 hardens its
+security edges and adds the first Python unit tests so regressions in
+the upload path are caught before they reach CI's container drills.
+See ADR-0037 for the threat model.
+
+### Changed — app security posture
+
+- **`ALLOWED_HOSTS` no longer defaults to `*`.** The previous default
+  meant a misconfigured prod deploy answered any Host header. The new
+  default is the canonical hostname plus `localhost`/`127.0.0.1` for
+  the in-container readiness probe; operators still override via env.
+- **`SecurityMiddleware` is now the first middleware**, with
+  `CsrfViewMiddleware` and `XFrameOptionsMiddleware` added as
+  defense-in-depth for the admin and future session views.
+- **`SECURE_*` headers** are now set by the app, not just the proxy:
+  `SECURE_PROXY_SSL_HEADER`, `SECURE_SSL_REDIRECT`, HSTS (1 year,
+  preload, include-subdomains), `SECURE_CONTENT_TYPE_NOSNIFF`,
+  `SECURE_REFERRER_POLICY`, `X_FRAME_OPTIONS=DENY`. HSTS is disabled
+  in local dev so a curl to `http://localhost` does not redirect.
+- **`/health/*` exempt from the SSL redirect** so the in-container
+  readiness probe can reach the app over plain HTTP.
+
+### Changed — upload validation
+
+- **Extension allow-list** (`{.pdf, .md, .markdown, .txt, .text}`) is
+  enforced before any bytes are written to disk.
+- **Magic-byte sniff** for PDF (`%PDF-`) defeats name-spoofing where
+  an attacker renames a binary to `.pdf`.
+- **UTF-8 decode check** for `.txt`/`.md` defeats the same attack on
+  text kinds, which have no portable magic bytes.
+- **Path-traversal rejection**: filenames containing `/` or `\` or
+  any path component are refused; storage is keyed by checksum, but
+  the name is echoed in the response.
+- **Filename length capped at 255 chars** before any disk I/O.
+
+### Fixed
+
+- **`detect_kind` silently accepted any extension as `text`** because
+  the `endswith` tuple contained an empty string (an empty string
+  `endswith` returns True). `evil.exe` was classified as plain text.
+  The empty-string fallback was removed; the `text/plain` MIME
+  fallback still handles extension-less files like `Makefile`. Found
+  by the new pytest suite.
+
+### Added — test + CI surface
+
+- **`tests/app/`** — 45 pytest unit tests covering `documents.ingestion`
+  (`detect_kind`, `validate_upload`, `split_chunks`, `extract_*`,
+  `approx_token_count`) and `chat.views._resolve_citations` (explicit
+  citations, ordering, dedup, bounds safety, fallback, snippet
+  shaping). Runs in <1s with no database.
+- **`.github/workflows/app-tests.yml`** runs the suite on every push
+  that touches app code or tests, and on every PR to `main`. Installs
+  only the deps the suite imports (skips torch / sentence-transformers
+  to keep the job under a minute).
+- **`pytest.ini`** pins `testpaths = tests/app`.
+- **`requirements-dev.txt`** pins `pytest==9.0.2` separately from the
+  runtime requirements.
+
 ## [1.2.0] — 2026-11-16
 
 The product catches up to the operations. Through v1.1.x the `app/`
