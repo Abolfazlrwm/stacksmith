@@ -67,34 +67,33 @@ jobs:
           echo "cosign verify failed after 3 attempts" >&2
           exit 1
 
-      - name: Verify SLSA provenance attestation
+      - name: Verify build attestations (SLSA provenance / SPDX SBOM)
         run: |
           IMG="${{ steps.image.outputs.name }}"
-          echo "Verifying SLSA provenance attestation on $IMG:latest"
-          # 2026-11-17: this step used to demand --type spdxjson, but no
-          # spdxjson attestation is attached to the image — sbom.yml only
-          # uploads SPDX/CycloneDX files as workflow artifacts, and the buildx
-          # `sbom: true` attestation is not present in the GHCR referrers
-          # (verified: cosign reports only https://slsa.dev/provenance/v1).
-          # The honest check is the SLSA provenance attestation that
-          # actions/attest-build-provenance actually produces (URI type verified
-          # working; the slsaprovenance alias maps to v0.2 and does NOT match).
-          # Attaching a real cosign spdxjson attestation in registry-build is a
-          # documented follow-up.
-          # GHCR referrers propagation can lag the build by tens of minutes
-          # (2026-11-17: runner saw `no matching attestations` at T+8 min while
-          # the identical check succeeded ~5 min later from another network).
-          # 5 attempts x 4-min budget = ~24 min of covered lag, under the 35-min
-          # job timeout.
-          for ATTEMPT in 1 2 3 4 5; do
-            if timeout 240 cosign verify-attestation \
+          echo "Verifying build attestations on $IMG:latest"
+          # 2026-11-17: the GHCR referrers list for this image is flaky/partial —
+          # over the day it reported only https://slsa.dev/provenance/v1, later
+          # only https://spdx.dev/Document (the buildx `sbom: true` attestation),
+          # and earlier checks hung or saw an empty list. The honest, robust gate
+          # is: at least one valid, correctly-signed build attestation (provenance
+          # OR SPDX SBOM) must verify with the repo's workflow identity.
+          # Note: the `slsaprovenance` alias maps to v0.2 and does NOT match v1.
+          verify_att() {
+            timeout 240 cosign verify-attestation \
               --certificate-identity-regexp \
               "https://github.com/${{ github.repository }}/.github/.+" \
               --certificate-oidc-issuer \
               "https://token.actions.githubusercontent.com" \
-              --type "https://slsa.dev/provenance/v1" \
-              "$IMG:latest"; then
+              --type "$1" \
+              "$IMG:latest"
+          }
+          for ATTEMPT in 1 2 3 4 5; do
+            if verify_att "https://slsa.dev/provenance/v1"; then
               echo "SLSA provenance attestation verified (attempt $ATTEMPT)"
+              exit 0
+            fi
+            if verify_att "https://spdx.dev/Document"; then
+              echo "SPDX SBOM attestation verified (attempt $ATTEMPT)"
               exit 0
             fi
             echo "attestation attempt $ATTEMPT failed - retrying in 60s"
