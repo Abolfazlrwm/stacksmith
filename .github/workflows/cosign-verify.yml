@@ -4,6 +4,17 @@ name: cosign-verify
 # Verifies that the latest GHCR image has a valid cosign signature
 # before it can be deployed. This closes the supply-chain loop:
 # sign (cosign-sign) → verify (this workflow) → deploy.
+#
+# This workflow is a HARD gate and therefore deliberately narrow: it only
+# touches the image SIGNATURE, which answered fast in every run of
+# 2026-11-17. The build-attestation check lives in its own soft workflow
+# (cosign-attest.yml): on that date the GHCR *read* path from GitHub-hosted
+# runners intermittently blackholed (cosign verify-attestation AND syft both
+# wedged; meanwhile pushes/attests/signs - the write path - always worked,
+# and the same reads succeeded in seconds from other networks). A wedged
+# runner burns its whole job clock and is killed by GitHub with conclusion
+# "cancelled" - logs never upload - so the wedge-prone check must never run
+# inside a hard-gate workflow.
 on:
   workflow_run:
     workflows: ["cosign-sign"]
@@ -22,7 +33,10 @@ jobs:
   verify:
     name: verify cosign signature on latest image
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    # Signature worst case is 10 min (3 x (160 s call + 60 s sleep)); 20 gives
+    # 2x headroom. Note: GitHub enforces timeout-minutes on a ~5-min cadence,
+    # so the kill actually lands at ~25 min.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -46,17 +60,12 @@ jobs:
         run: |
           IMG="${{ steps.image.outputs.name }}"
           echo "Verifying signature on $IMG:latest"
-          # GHCR signature/attestation blobs can lag the sign run by minutes;
-          # coreutils `timeout -k` turns a hung registry call into a retryable
-          # failure instead of burning the whole job budget.
-          # CRITICAL: plain `timeout N` only sends SIGTERM and then waits for
-          # the child forever - hung cosign calls survived SIGTERM all day
-          # (runs 44041025760/44046873512/44047891905, each killed at exactly
-          # 40:00 regardless of the loop budget). `-k 10` escalates to SIGKILL
-          # 10 s after TERM, so a call can never outlive N+10 seconds.
-          # Budget: 3 x (160 s max + 60 s sleep) = 10 min worst case. With the
-          # attestation step's 20 min worst case the whole job peaks at ~31 min
-          # < the 35-min setting < the ~40-min enforcement.
+          # `timeout -k 10 N` is essential: plain `timeout N` only sends
+          # SIGTERM and then waits for the child forever, and a cosign call
+          # stuck in a blackholed connection ignores SIGTERM. `-k 10`
+          # escalates to SIGKILL, so a call can never outlive N+10 seconds.
+          # Healthy registry answers in ~1 s (observed in every successful
+          # run); only transient propagation lag (minutes) needs retries.
           for ATTEMPT in 1 2 3; do
             if timeout -k 10 150 cosign verify \
               --certificate-identity-regexp \
@@ -71,58 +80,4 @@ jobs:
             sleep 60
           done
           echo "cosign verify failed after 3 attempts" >&2
-          exit 1
-
-      # Soft gate: step-level continue-on-error keeps the run green when GHCR
-      # referrers flake on the runner network, while the signature gate above
-      # stays hard (a signature failure still fails the whole job).
-      # 2026-11-17 evidence: the SAME check exits 0 in seconds from another
-      # network (attestation payload carries gitCommit 5112bdaf), so the
-      # image itself is fine - only the runner's view of referrers is flaky.
-      - name: Verify build attestations (SLSA provenance / SPDX SBOM)
-        continue-on-error: true
-        run: |
-          IMG="${{ steps.image.outputs.name }}"
-          echo "Verifying build attestations on $IMG:latest"
-          # 2026-11-17: the GHCR referrers list for this image is flaky/partial —
-          # over the day it reported only https://slsa.dev/provenance/v1, later
-          # only https://spdx.dev/Document (the buildx `sbom: true` attestation),
-          # and earlier checks hung or saw an empty list. The honest, robust gate
-          # is: at least one valid, correctly-signed build attestation (provenance
-          # OR SPDX SBOM) must verify with the repo's workflow identity.
-          # Note: the `slsaprovenance` alias maps to v0.2 and does NOT match v1.
-          #
-          # Retry budget MUST fit inside the 35-min job timeout, TOGETHER with
-          # the signature step's own worst case (10 min). Hung cosign calls
-          # survive SIGTERM, so every call uses `timeout -k 10 150` (TERM at
-          # 150 s, SIGKILL at 160 s - a call can never outlive ~2.7 min).
-          # 3 attempts x (2 x 160 s) + 2 x 60 s sleep = 20 min worst case;
-          # 10 + 20 + setup ≈ 31 min < 35 min setting < ~40 min enforcement.
-          # A healthy registry answers in seconds (6 s verified locally), so
-          # honest failures still finish in ~3 min. (History: 5 x 240 s TERM-
-          # only = 44 min - killed; 4 x 180 s TERM-only = runs 44046873512 and
-          # 44047891905 still killed at 40:00 because hung cosign ignored
-          # SIGTERM and the loop never advanced.)
-          verify_att() {
-            timeout -k 10 150 cosign verify-attestation \
-              --certificate-identity-regexp \
-              "https://github.com/${{ github.repository }}/.github/.+" \
-              --certificate-oidc-issuer \
-              "https://token.actions.githubusercontent.com" \
-              --type "$1" \
-              "$IMG:latest"
-          }
-          for ATTEMPT in 1 2 3; do
-            if verify_att "https://slsa.dev/provenance/v1"; then
-              echo "SLSA provenance attestation verified (attempt $ATTEMPT)"
-              exit 0
-            fi
-            if verify_att "https://spdx.dev/Document"; then
-              echo "SPDX SBOM attestation verified (attempt $ATTEMPT)"
-              exit 0
-            fi
-            echo "attestation attempt $ATTEMPT failed - retrying in 60s"
-            sleep 60
-          done
-          echo "cosign verify-attestation failed after 3 attempts" >&2
           exit 1
