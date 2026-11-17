@@ -6,6 +6,91 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.2] — 2026-11-17
+
+The hardening release. v1.2.0 shipped the docubot product (ADR-0036)
+and the v1.2.1 test suite (commit `07bc21e`) added 70 unit tests that
+also surfaced and fixed the `detect_kind` `endswith("")` bug. v1.2.2
+hardens the remaining security edges of the app boundary that the
+test suite and the container drills do not exercise: a closed
+`ALLOWED_HOSTS` default, `SECURE_*` headers at the app layer, and
+upload validation before any bytes reach disk. See ADR-0037 for the
+threat model.
+
+### Changed — app security posture
+
+- **`ALLOWED_HOSTS` no longer defaults to `*`.** The previous default
+  meant a misconfigured prod deploy answered any Host header. The new
+  default is `docubot.example.com,localhost,127.0.0.1` (the canonical
+  hostname plus the loopback addresses the in-container readiness probe
+  uses); operators still override via `DJANGO_ALLOWED_HOSTS`. Local dev
+  passes `*` explicitly.
+- **`SecurityMiddleware` is now the first middleware**, with
+  `CsrfViewMiddleware` and `XFrameOptionsMiddleware` added as
+  defense-in-depth for the admin and any future session-backed view.
+  The chat and documents APIs are not CSRF-protected today (the reverse
+  proxy authenticates and sets `X-Docubot-Owner`), so CSRF protection
+  here is purely additive.
+- **`SECURE_*` headers** are now set by the app, not just the proxy:
+  `SECURE_PROXY_SSL_HEADER`, HSTS (1 year, preload, include-subdomains),
+  `SECURE_CONTENT_TYPE_NOSNIFF`, `SECURE_REFERRER_POLICY`,
+  `X_FRAME_OPTIONS=DENY`. These are response-header-only and cannot
+  break a health probe. HSTS is disabled in local dev (`DEBUG=true`)
+  because it has no effect over plain HTTP.
+- **`SECURE_SSL_REDIRECT` is opt-in, default off.** An earlier draft
+  turned it on when `DEBUG=false`, which broke every container drill:
+  the in-container readiness probe and the blue/green canary probe hit
+  the app over plain HTTP (nginx has not terminated TLS at that point
+  in the deploy sequence), so the redirect made every probe see `301`
+  forever and the stack never reported healthy. Operators turn it on
+  with `DJANGO_SSL_REDIRECT=true` only when the app is directly
+  internet-facing (rare; normally nginx handles the redirect).
+- **`/health/*` exempt from the SSL redirect** as belt-and-suspenders,
+  so even with the redirect on, the probe still sees a `200`.
+
+### Changed — upload validation
+
+- **Extension allow-list** (`{.pdf, .md, .markdown, .txt, .text}`) is
+  enforced before any bytes are written to disk, in the new
+  `documents.ingestion.validate_upload()` gate.
+- **Magic-byte sniff** for PDF (`%PDF-`) defeats name-spoofing where
+  an attacker renames a binary to `.pdf` to slip past the extension
+  check. The headline attack: `evil.exe` renamed to `evil.pdf`.
+- **UTF-8 decode check** for `.txt`/`.md` defeats the same attack on
+  text kinds, which have no portable magic bytes. A renamed binary
+  fails the decode instead of producing garbage chunks with U+FFFD
+  replacements.
+- **Path-traversal rejection**: filenames containing `/` or `\` or any
+  path component are refused with a 400; storage is keyed by checksum,
+  but the name is echoed in the response so it must be a bare filename.
+- **Filename length capped at 255 chars** before any disk I/O, so a
+  malicious client cannot send a 10 MB filename string.
+
+### Added — test + ADR surface
+
+- **`app/tests/test_upload_validation.py`** — 19 new pytest unit tests
+  covering the three layers of `validate_upload`: extension allow-list
+  (case-insensitive, frozen set, all suffix variants, rejects
+  `.exe`/`.zip`/`.csv`/`.png`/`.docx`), magic-byte sniff (rejects
+  EXE-as-PDF and ZIP-as-PDF), UTF-8 decode check (rejects binary-as-txt
+  and binary-as-md, accepts multi-byte UTF-8 and empty files). Suite
+  now 89 tests total (70 from v1.2.1 + 19 new), runs in <1s.
+- **`app/tests/conftest.py`** prepends `testserver` to
+  `DJANGO_ALLOWED_HOSTS` before `django.setup()` so the closed default
+  does not break Django's test client (which sends `Host: testserver`).
+  Production behavior is unchanged.
+- **ADR-0037** records the threat model, the three-layer upload
+  validation, and the rationale for opt-in `SECURE_SSL_REDIRECT`.
+
+### Not changed (deliberately)
+
+- **No `pytest.ini` or `requirements-dev.txt`.** main's `unit.yml`
+  workflow already installs the dependency subset (filters
+  `torch`/`sentence-transformers` out of `app/requirements.txt`) and
+  runs `pytest app/tests`. Reusing it keeps one CI job for unit tests.
+- **No separate `app-tests.yml` workflow.** Same reason — `unit.yml`
+  already exists and is the canonical gate.
+
 ## [1.2.0] — 2026-11-16
 
 The product catches up to the operations. Through v1.1.x the `app/`
