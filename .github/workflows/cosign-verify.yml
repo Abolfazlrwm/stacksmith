@@ -22,7 +22,7 @@ jobs:
   verify:
     name: verify cosign signature on latest image
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
@@ -81,8 +81,13 @@ jobs:
           # working; the slsaprovenance alias maps to v0.2 and does NOT match).
           # Attaching a real cosign spdxjson attestation in registry-build is a
           # documented follow-up.
-          for ATTEMPT in 1 2 3; do
-            if timeout 300 cosign verify-attestation \
+          # GHCR referrers propagation can lag the build by tens of minutes
+          # (2026-11-17: runner saw `no matching attestations` at T+8 min while
+          # the identical check succeeded ~5 min later from another network).
+          # 5 attempts x 4-min budget = ~24 min of covered lag, under the 35-min
+          # job timeout.
+          for ATTEMPT in 1 2 3 4 5; do
+            if timeout 240 cosign verify-attestation \
               --certificate-identity-regexp \
               "https://github.com/${{ github.repository }}/.github/.+" \
               --certificate-oidc-issuer \
@@ -95,5 +100,5 @@ jobs:
             echo "attestation attempt $ATTEMPT failed - retrying in 60s"
             sleep 60
           done
-          echo "cosign verify-attestation failed after 3 attempts" >&2
+          echo "cosign verify-attestation failed after 5 attempts" >&2
           exit 1
