@@ -1,0 +1,97 @@
+---
+name: cosign-attest
+
+# Soft gate for build attestations (SLSA provenance / SPDX SBOM) on the
+# latest GHCR image. Kept in a SEPARATE workflow on purpose:
+#
+# 2026-11-17 incident: the GHCR READ path from GitHub-hosted runners
+# intermittently blackholed for this image. cosign verify-attestation wedged
+# (each job burned its full clock and was killed by GitHub at the timeout
+# boundary with conclusion "cancelled" - and cancelled jobs never upload
+# logs), and in the very same push chain the `generate SBOM with syft` job
+# was killed by its own 10-min timeout the same way. Meanwhile the WRITE
+# path (push / attest-build-provenance / cosign sign) always worked, and the
+# identical reads verified in seconds from other networks (sandbox:
+# verify-attestation exit=0, payload gitCommit matching the build). So the
+# image and its attestations are fine; only some runner-originated reads
+# wedge. A check that can wedge the runner must never sit inside a hard
+# gate - hence this isolated workflow: on bad days it shows cancelled /
+# soft-failed, on good days green, and nothing else is affected.
+#
+# Verified attestation types:
+# - https://slsa.dev/provenance/v1 (attached by actions/attest-build-provenance)
+# - https://spdx.dev/Document (buildx `sbom: true`)
+# Either one, correctly signed by this repo's workflows, is a pass. The
+# `slsaprovenance` alias maps to v0.2 and does NOT match v1 - use the URI.
+on:
+  workflow_run:
+    workflows: ["cosign-sign"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "30 6 * * *"
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  attest:
+    name: verify build attestations on latest image
+    runs-on: ubuntu-latest
+    # Loop worst case ~16 min (3 attempts x (2 x 130 s call + 60 s sleep));
+    # 25 gives headroom (enforced ~30). A healthy registry answers in
+    # seconds - honest failures finish in ~3 min.
+    timeout-minutes: 25
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Log in to GHCR (read-only)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lowercase image name
+        id: image
+        run: |
+          IMG="ghcr.io/${{ github.repository }}/app"
+          echo "name=$(echo "$IMG" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Verify build attestations (SLSA provenance / SPDX SBOM)
+        run: |
+          IMG="${{ steps.image.outputs.name }}"
+          echo "Verifying build attestations on $IMG:latest"
+          # `timeout -k 10 N`: TERM at N s, SIGKILL at N+10 s - a hung call
+          # can never outlive N+10 seconds (see workflow header for why).
+          verify_att() {
+            timeout -k 10 120 cosign verify-attestation \
+              --certificate-identity-regexp \
+              "https://github.com/${{ github.repository }}/.github/.+" \
+              --certificate-oidc-issuer \
+              "https://token.actions.githubusercontent.com" \
+              --type "$1" \
+              "$IMG:latest"
+          }
+          for ATTEMPT in 1 2 3; do
+            if verify_att "https://slsa.dev/provenance/v1"; then
+              echo "SLSA provenance attestation verified (attempt $ATTEMPT)"
+              exit 0
+            fi
+            if verify_att "https://spdx.dev/Document"; then
+              echo "SPDX SBOM attestation verified (attempt $ATTEMPT)"
+              exit 0
+            fi
+            echo "attestation attempt $ATTEMPT failed - retrying in 60s"
+            sleep 60
+          done
+          echo "cosign verify-attestation failed after 3 attempts" >&2
+          echo "If every attempt died at its timeout, see the workflow header:" >&2
+          echo "the 2026-11-17 GHCR read-path incident is the known cause." >&2
+          exit 1
