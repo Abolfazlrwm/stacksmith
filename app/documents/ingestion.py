@@ -123,3 +123,69 @@ def detect_kind(filename: str, mime: str | None = None) -> str:
     if "." not in name:
         return "text"
     raise ValueError(f"cannot determine document kind from {filename!r}")
+
+
+# Explicit allow-list of accepted extensions. The upload view rejects
+# anything not in this set BEFORE writing bytes to disk, so a request
+# with a .exe payload never lands on the upload volume. Paired with
+# the magic-byte check below, this defeats both name-spoofing and
+# content-spoofing attacks on the upload path. (ADR-0037.)
+ALLOWED_EXTENSIONS = frozenset({".pdf", ".md", ".markdown", ".txt", ".text"})
+
+# Magic-byte signatures for the kinds we accept. The first bytes of the
+# upload are checked against these so a file named `evil.pdf` whose
+# content is an EXE is rejected at the door. PDF is the only kind with
+# a portable signature today; text and markdown are validated by a
+# UTF-8 decode check instead (see validate_upload).
+MAGIC_SIGNATURES: dict[str, bytes] = {
+    "pdf": b"%PDF-",  # PDF files always start with %PDF-
+}
+
+
+def validate_upload(filename: str, data: bytes) -> str:
+    """Reject disallowed uploads before any bytes are written to disk.
+
+    Returns the resolved `kind` on success; raises ValueError with a
+    user-facing message on rejection. Three layers of defense, all run
+    before the upload view writes the tmp file:
+
+    1. Extension allow-list — the filename must end with one of the
+       accepted suffixes (case-insensitive). Defeats casual uploads of
+       the wrong type and any extension we never ingest.
+    2. Magic-byte sniff — for kinds with a known signature (PDF today),
+       the first bytes of the content must match. Defeats name-spoofing
+       where an attacker renames a binary to .pdf to slip past (1).
+    3. UTF-8 decode check — text and markdown have no portable magic
+       bytes (they are arbitrary UTF-8), so for those we require the
+       bytes to decode as UTF-8. A renamed binary fails here.
+    """
+    name = filename.lower()
+    if not any(name.endswith(ext) for ext in ALLOWED_EXTENSIONS):
+        raise ValueError(
+            f"unsupported file type: {filename!r}; "
+            f"accepted extensions: {sorted(ALLOWED_EXTENSIONS)}"
+        )
+    try:
+        kind = detect_kind(filename, mime=None)
+    except ValueError as exc:
+        raise ValueError(str(exc)) from exc
+
+    sig = MAGIC_SIGNATURES.get(kind)
+    if sig is not None:
+        if not data.startswith(sig):
+            raise ValueError(
+                f"file {filename!r} claims to be a {kind} but its content "
+                f"does not match the {kind!r} magic bytes; refusing upload"
+            )
+    else:
+        # Text / markdown — verify it is decodable UTF-8 so a binary
+        # payload renamed to .txt is rejected rather than producing
+        # garbage chunks with U+FFFD replacements.
+        try:
+            data.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ValueError(
+                f"file {filename!r} is not valid UTF-8 text; refusing upload"
+            ) from exc
+    return kind
+
