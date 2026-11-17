@@ -22,7 +22,7 @@ jobs:
   verify:
     name: verify cosign signature on latest image
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
@@ -47,23 +47,43 @@ jobs:
         run: |
           IMG="${{ steps.image.outputs.name }}"
           echo "Verifying signature on $IMG:latest"
-          cosign verify \
-            --certificate-identity-regexp \
-            "https://github.com/${{ github.repository }}/.github/.+" \
-            --certificate-oidc-issuer \
-            "https://token.actions.githubusercontent.com" \
-            "$IMG:latest"
-          echo "Signature verified — image is safe to deploy"
+          # GHCR signature/attestation blobs can lag the sign run by minutes;
+          # coreutils `timeout` turns a hung registry call into a retryable
+          # failure instead of burning the whole job budget (2026-11-17: the
+          # SBOM attestation step hung ~20 min and the run was killed).
+          for ATTEMPT in 1 2 3; do
+            if timeout 300 cosign verify \
+              --certificate-identity-regexp \
+              "https://github.com/${{ github.repository }}/.github/.+" \
+              --certificate-oidc-issuer \
+              "https://token.actions.githubusercontent.com" \
+              "$IMG:latest"; then
+              echo "Signature verified (attempt $ATTEMPT) — image is safe to deploy"
+              exit 0
+            fi
+            echo "verify attempt $ATTEMPT failed - retrying in 60s"
+            sleep 60
+          done
+          echo "cosign verify failed after 3 attempts" >&2
+          exit 1
 
       - name: Verify SBOM attestation
         run: |
           IMG="${{ steps.image.outputs.name }}"
           echo "Verifying SBOM attestation on $IMG:latest"
-          cosign verify-attestation \
-            --certificate-identity-regexp \
-            "https://github.com/${{ github.repository }}/.github/.+" \
-            --certificate-oidc-issuer \
-            "https://token.actions.githubusercontent.com" \
-            --type spdxjson \
-            "$IMG:latest"
-          echo "SBOM attestation verified"
+          for ATTEMPT in 1 2 3; do
+            if timeout 300 cosign verify-attestation \
+              --certificate-identity-regexp \
+              "https://github.com/${{ github.repository }}/.github/.+" \
+              --certificate-oidc-issuer \
+              "https://token.actions.githubusercontent.com" \
+              --type spdxjson \
+              "$IMG:latest"; then
+              echo "SBOM attestation verified (attempt $ATTEMPT)"
+              exit 0
+            fi
+            echo "attestation attempt $ATTEMPT failed - retrying in 60s"
+            sleep 60
+          done
+          echo "cosign verify-attestation failed after 3 attempts" >&2
+          exit 1
