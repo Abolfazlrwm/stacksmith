@@ -78,8 +78,18 @@ jobs:
           # is: at least one valid, correctly-signed build attestation (provenance
           # OR SPDX SBOM) must verify with the repo's workflow identity.
           # Note: the `slsaprovenance` alias maps to v0.2 and does NOT match v1.
+          #
+          # Retry budget MUST fit inside the 35-min job timeout. On the runner
+          # each hung cosign call burns the full per-call `timeout`; two
+          # per-attempt calls x 5 attempts x 240 s = 44 min worst case, which
+          # the 35-min job timeout killed with no verdict (runs 44028273348,
+          # 44032471866 — both cut at ~40 min, step never concluded).
+          # New budget: 4 attempts x (2 calls x 180 s) + 3 x 60 s sleep
+          # = 27 min worst case; + setup + signature step ≈ 31 min < 35 min.
+          # A *healthy* registry answers in seconds (6 s verified locally), so
+          # honest failures still finish in ~5 min.
           verify_att() {
-            timeout 240 cosign verify-attestation \
+            timeout 180 cosign verify-attestation \
               --certificate-identity-regexp \
               "https://github.com/${{ github.repository }}/.github/.+" \
               --certificate-oidc-issuer \
@@ -87,7 +97,7 @@ jobs:
               --type "$1" \
               "$IMG:latest"
           }
-          for ATTEMPT in 1 2 3 4 5; do
+          for ATTEMPT in 1 2 3 4; do
             if verify_att "https://slsa.dev/provenance/v1"; then
               echo "SLSA provenance attestation verified (attempt $ATTEMPT)"
               exit 0
@@ -99,5 +109,5 @@ jobs:
             echo "attestation attempt $ATTEMPT failed - retrying in 60s"
             sleep 60
           done
-          echo "cosign verify-attestation failed after 5 attempts" >&2
+          echo "cosign verify-attestation failed after 4 attempts" >&2
           exit 1
