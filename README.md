@@ -68,8 +68,8 @@ images, and the runbooks + SLOs that make it operable.
 - **Security** — CodeQL, Trivy, dependency review, SBOM, cosign image
   signing + verify gate.
 - **App hardening** — `ALLOWED_HOSTS` fails closed, `SECURE_*` headers
-  set at the app (not just the proxy), upload path validates extension
-  + magic bytes + UTF-8 + rejects path-traversal names; 89 pytest
+  set at the app (not just the proxy), upload path validates extension,
+  magic bytes, UTF-8, and rejects path-traversal names; 89 pytest
   unit tests guard the app's security edges (ADR-0037).
 - **Infrastructure as code** — Terraform for Hetzner + DigitalOcean.
 
