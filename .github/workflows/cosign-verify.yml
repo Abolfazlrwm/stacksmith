@@ -47,17 +47,18 @@ jobs:
           IMG="${{ steps.image.outputs.name }}"
           echo "Verifying signature on $IMG:latest"
           # GHCR signature/attestation blobs can lag the sign run by minutes;
-          # coreutils `timeout` turns a hung registry call into a retryable
-          # failure instead of burning the whole job budget (2026-11-17: the
-          # SBOM attestation step hung ~20 min and the run was killed).
-          # Budget: 3 x (180 s call + 60 s sleep) = 11 min worst case. With the
-          # attestation step's 21 min worst case the whole job peaks at ~33 min,
-          # inside the 35-min timeout (enforced ~40 min on these runners).
-          # 2026-11-17 run 44041025760: two hung 300-s signature calls + a 27-min
-          # attestation loop = 39 min, and the runner killed the job seconds
-          # before the loop could print its verdict.
+          # coreutils `timeout -k` turns a hung registry call into a retryable
+          # failure instead of burning the whole job budget.
+          # CRITICAL: plain `timeout N` only sends SIGTERM and then waits for
+          # the child forever - hung cosign calls survived SIGTERM all day
+          # (runs 44041025760/44046873512/44047891905, each killed at exactly
+          # 40:00 regardless of the loop budget). `-k 10` escalates to SIGKILL
+          # 10 s after TERM, so a call can never outlive N+10 seconds.
+          # Budget: 3 x (160 s max + 60 s sleep) = 10 min worst case. With the
+          # attestation step's 20 min worst case the whole job peaks at ~31 min
+          # < the 35-min setting < the ~40-min enforcement.
           for ATTEMPT in 1 2 3; do
-            if timeout 180 cosign verify \
+            if timeout -k 10 150 cosign verify \
               --certificate-identity-regexp \
               "https://github.com/${{ github.repository }}/.github/.+" \
               --certificate-oidc-issuer \
@@ -92,16 +93,18 @@ jobs:
           # Note: the `slsaprovenance` alias maps to v0.2 and does NOT match v1.
           #
           # Retry budget MUST fit inside the 35-min job timeout, TOGETHER with
-          # the signature step's own worst case (11 min). On the runner each
-          # hung cosign call burns the full per-call `timeout`; two calls per
-          # attempt. 3 attempts x (2 x 180 s) + 2 x 60 s sleep = 21 min worst
-          # case; 11 + 21 + setup ≈ 33 min < 35 min. A healthy registry answers
-          # in seconds (6 s verified locally), so honest failures still finish
-          # in ~3 min. (History: 5 x 240 s = 44 min - killed, runs 44028273348
-          # and 44032471866; 4 x 180 s = 27 min alone was fine but 12 min of
-          # signature hangs on top pushed run 44041025760 past the kill line.)
+          # the signature step's own worst case (10 min). Hung cosign calls
+          # survive SIGTERM, so every call uses `timeout -k 10 150` (TERM at
+          # 150 s, SIGKILL at 160 s - a call can never outlive ~2.7 min).
+          # 3 attempts x (2 x 160 s) + 2 x 60 s sleep = 20 min worst case;
+          # 10 + 20 + setup ≈ 31 min < 35 min setting < ~40 min enforcement.
+          # A healthy registry answers in seconds (6 s verified locally), so
+          # honest failures still finish in ~3 min. (History: 5 x 240 s TERM-
+          # only = 44 min - killed; 4 x 180 s TERM-only = runs 44046873512 and
+          # 44047891905 still killed at 40:00 because hung cosign ignored
+          # SIGTERM and the loop never advanced.)
           verify_att() {
-            timeout 180 cosign verify-attestation \
+            timeout -k 10 150 cosign verify-attestation \
               --certificate-identity-regexp \
               "https://github.com/${{ github.repository }}/.github/.+" \
               --certificate-oidc-issuer \
