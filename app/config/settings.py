@@ -6,7 +6,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-insecure-key-change-me")
 DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",")
+
+# ALLOWED_HOSTS — never default to "*" in production. Local dev can pass
+# "*" explicitly via DJANGO_ALLOWED_HOSTS=*, but the default is the
+# canonical hostname only, so a misconfigured prod deploy fails closed.
+_ALLOWED_HOSTS_RAW = os.environ.get("DJANGO_ALLOWED_HOSTS", "docubot.example.com,localhost,127.0.0.1")
+ALLOWED_HOSTS = [h.strip() for h in _ALLOWED_HOSTS_RAW.split(",") if h.strip()]
 
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
@@ -23,12 +28,23 @@ INSTALLED_APPS = [
     "chat",
 ]
 
+# SecurityMiddleware must be first to set HSTS / redirect / content-type
+# headers. It is in front of CommonMiddleware so redirects happen before
+# the proxy-set headers are merged. (ADR-0016 hardens the app surface.)
 MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    # Rejects POST/PUT/DELETE without a valid CSRF token. The chat +
+    # documents APIs are not CSRF-protected today (the reverse proxy
+    # authenticates and sets X-Docubot-Owner; see docs/security.md),
+    # so this middleware is here as defense-in-depth for the admin and
+    # future session-backed views.
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -50,6 +66,26 @@ CORS_ALLOWED_ORIGINS = [
     if o
 ]
 CORS_ALLOW_ALL_ORIGINS = DEBUG
+
+# --- Security headers (ADR-0016) -------------------------------------
+# The reverse proxy (nginx) sets these too, but the app must not rely on
+# the proxy alone — the canary probe and any direct port-8000 access
+# (local dev, the readiness probe inside the container network) should
+# also see hardened responses. Defense-in-depth.
+#
+# Behind nginx in prod, X-Forwarded-Proto=https is set by the proxy
+# (see nginx/default.conf) so SECURE_PROXY_SSL_HEADER correctly reports
+# the original scheme. In local dev without TLS, DEBUG=true disables
+# HSTS so a curl to http://localhost does not get an infinite redirect.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = not DEBUG
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0  # 1 year, prod only
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+SECURE_REDIRECT_EXEMPT = [r"^/health/.*$"]  # probes must not redirect
+X_FRAME_OPTIONS = "DENY"
 
 # DRF — no per-credential auth yet; the reverse proxy sets X-Docubot-Owner
 # after performing its own auth. See docs/security.md.
