@@ -1,11 +1,13 @@
 # StackSmith
 
 [![lint](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/lint.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/lint.yml)
+[![app tests](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/app-tests.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/app-tests.yml)
 [![smoke](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/smoke.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/smoke.yml)
 [![restore drill](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/restore-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/restore-drill.yml)
 [![disaster recovery](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/disaster-recovery-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/disaster-recovery-drill.yml)
 [![latency SLI](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/latency-sli-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/latency-sli-drill.yml)
 [![cosign at deploy](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/cosign-at-deploy.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/cosign-at-deploy.yml)
+[![container scan](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/container-scan.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/container-scan.yml)
 [![security](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/codeql.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/codeql.yml)
 [![Release](https://img.shields.io/github/v/release/Abolfazlrwm/stacksmith?sort=semver)](https://github.com/Abolfazlrwm/stacksmith/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -34,6 +36,12 @@ images, and the runbooks + SLOs that make it operable.
 > v1.1.x the `app/` directory was a Django health-check stub; the deck
 > and this README described a document-chat product that did not exist
 > in code. v1.2.0 ships that product. See ADR-0036.
+>
+> **v1.2.1 — the hardening release.** Fail-closed `ALLOWED_HOSTS`,
+> `SECURE_*` headers + HSTS at the app layer, upload validation
+> (extension allow-list + magic-byte sniff + UTF-8 check + path-
+> traversal rejection), and 45 pytest unit tests under `tests/app/`.
+> See ADR-0037.
 
 ## Product features (docubot)
 
@@ -61,6 +69,10 @@ images, and the runbooks + SLOs that make it operable.
   ratio < 2% (ADR-0033, ADR-0035).
 - **Security** — CodeQL, Trivy, dependency review, SBOM, cosign image
   signing + verify gate.
+- **App hardening** — `ALLOWED_HOSTS` fails closed, `SECURE_*` headers
+  set at the app (not just the proxy), upload path validates
+  extension + magic bytes + UTF-8 + rejects path-traversal names;
+  45 pytest unit tests guard the app's security edges (ADR-0037).
 - **Infrastructure as code** — Terraform for Hetzner + DigitalOcean.
 
 ## Stability
