@@ -23,7 +23,6 @@ jobs:
     name: verify cosign signature on latest image
     runs-on: ubuntu-latest
     timeout-minutes: 35
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -51,8 +50,14 @@ jobs:
           # coreutils `timeout` turns a hung registry call into a retryable
           # failure instead of burning the whole job budget (2026-11-17: the
           # SBOM attestation step hung ~20 min and the run was killed).
+          # Budget: 3 x (180 s call + 60 s sleep) = 11 min worst case. With the
+          # attestation step's 21 min worst case the whole job peaks at ~33 min,
+          # inside the 35-min timeout (enforced ~40 min on these runners).
+          # 2026-11-17 run 44041025760: two hung 300-s signature calls + a 27-min
+          # attestation loop = 39 min, and the runner killed the job seconds
+          # before the loop could print its verdict.
           for ATTEMPT in 1 2 3; do
-            if timeout 300 cosign verify \
+            if timeout 180 cosign verify \
               --certificate-identity-regexp \
               "https://github.com/${{ github.repository }}/.github/.+" \
               --certificate-oidc-issuer \
@@ -67,7 +72,14 @@ jobs:
           echo "cosign verify failed after 3 attempts" >&2
           exit 1
 
+      # Soft gate: step-level continue-on-error keeps the run green when GHCR
+      # referrers flake on the runner network, while the signature gate above
+      # stays hard (a signature failure still fails the whole job).
+      # 2026-11-17 evidence: the SAME check exits 0 in seconds from another
+      # network (attestation payload carries gitCommit 5112bdaf), so the
+      # image itself is fine - only the runner's view of referrers is flaky.
       - name: Verify build attestations (SLSA provenance / SPDX SBOM)
+        continue-on-error: true
         run: |
           IMG="${{ steps.image.outputs.name }}"
           echo "Verifying build attestations on $IMG:latest"
@@ -79,15 +91,15 @@ jobs:
           # OR SPDX SBOM) must verify with the repo's workflow identity.
           # Note: the `slsaprovenance` alias maps to v0.2 and does NOT match v1.
           #
-          # Retry budget MUST fit inside the 35-min job timeout. On the runner
-          # each hung cosign call burns the full per-call `timeout`; two
-          # per-attempt calls x 5 attempts x 240 s = 44 min worst case, which
-          # the 35-min job timeout killed with no verdict (runs 44028273348,
-          # 44032471866 — both cut at ~40 min, step never concluded).
-          # New budget: 4 attempts x (2 calls x 180 s) + 3 x 60 s sleep
-          # = 27 min worst case; + setup + signature step ≈ 31 min < 35 min.
-          # A *healthy* registry answers in seconds (6 s verified locally), so
-          # honest failures still finish in ~5 min.
+          # Retry budget MUST fit inside the 35-min job timeout, TOGETHER with
+          # the signature step's own worst case (11 min). On the runner each
+          # hung cosign call burns the full per-call `timeout`; two calls per
+          # attempt. 3 attempts x (2 x 180 s) + 2 x 60 s sleep = 21 min worst
+          # case; 11 + 21 + setup ≈ 33 min < 35 min. A healthy registry answers
+          # in seconds (6 s verified locally), so honest failures still finish
+          # in ~3 min. (History: 5 x 240 s = 44 min - killed, runs 44028273348
+          # and 44032471866; 4 x 180 s = 27 min alone was fine but 12 min of
+          # signature hangs on top pushed run 44041025760 past the kill line.)
           verify_att() {
             timeout 180 cosign verify-attestation \
               --certificate-identity-regexp \
@@ -97,7 +109,7 @@ jobs:
               --type "$1" \
               "$IMG:latest"
           }
-          for ATTEMPT in 1 2 3 4; do
+          for ATTEMPT in 1 2 3; do
             if verify_att "https://slsa.dev/provenance/v1"; then
               echo "SLSA provenance attestation verified (attempt $ATTEMPT)"
               exit 0
@@ -109,5 +121,5 @@ jobs:
             echo "attestation attempt $ATTEMPT failed - retrying in 60s"
             sleep 60
           done
-          echo "cosign verify-attestation failed after 4 attempts" >&2
+          echo "cosign verify-attestation failed after 3 attempts" >&2
           exit 1
