@@ -1,0 +1,79 @@
+---
+name: app-tests
+
+# Pure-Python unit tests for the docubot app code: ingestion, upload
+# validation, citation resolution, chunking. No database, no pgvector,
+# no Redis, no LLM — the suite runs against in-memory stubs (see
+# tests/app/conftest.py) and finishes in well under a second.
+#
+# The full container-based drills (restore, DR, chaos, encryption) live
+# in their own workflows. This one is the fast feedback loop for app
+# logic changes: a typo in _resolve_citations fails here in 40 seconds,
+# not in a 4-minute container drill.
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "app/**"
+      - "tests/app/**"
+      - "pytest.ini"
+      - "requirements-dev.txt"
+      - ".github/workflows/app-tests.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "tests/app/**"
+      - "pytest.ini"
+      - "requirements-dev.txt"
+      - ".github/workflows/app-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    name: pytest (app unit tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements-dev.txt
+            app/requirements.txt
+
+      - name: Install test + app deps
+        # Install only what the test suite actually imports — the full
+        # app/requirements.txt pulls torch + sentence-transformers
+        # (~2 GB), which would make this job 5x slower for no benefit
+        # since the tests stub out the embedding and LLM calls.
+        run: |
+          python -m pip install --upgrade pip
+          pip install \
+            pytest==9.0.2 \
+            Django==5.2 \
+            djangorestframework==3.18.3 \
+            pgvector==0.3.6 \
+            django-cors-headers==4.5.0 \
+            celery==5.4.0 \
+            redis==6.1.0 \
+            "psycopg[binary]==3.2.3" \
+            markdown==3.7
+
+      - name: Run pytest
+        # DJANGO_SETTINGS_MODULE is set inside conftest.py to the
+        # in-memory minimal settings module — no env var needed here.
+        run: pytest -ra --strict-markers --tb=short
+
+      - name: Show test summary on failure
+        if: failure()
+        run: |
+          echo "::error::app unit tests failed — see the log above for the failing assertion"
+          exit 1

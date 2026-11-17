@@ -1,0 +1,20 @@
+# Development / test dependencies.
+#
+# Pinned separately from app/requirements.txt because these are not
+# shipped in the runtime image — they only run in CI and on developer
+# machines. Install with:
+#
+#     pip install -r requirements-dev.txt
+#
+# The app deps (Django, DRF, pgvector, etc.) are imported by the test
+# suite via conftest.py's django.setup(), so they must also be present.
+# In CI the app's requirements.txt is installed first; locally you can
+# install both with:
+#
+#     pip install -r app/requirements.txt -r requirements-dev.txt
+#
+# but the test suite only needs the lighter subset — see the CI
+# workflow (.github/workflows/app-tests.yml) for the exact install
+# list it uses to keep the test job fast.
+
+pytest==9.0.2
