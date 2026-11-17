@@ -1,0 +1,56 @@
+---
+name: integrity-drill
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integrity-drill:
+    name: backup → verify → row counts match
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write CI .env
+        run: |
+          cp .env.example .env
+          sed -i 's/DJANGO_SECRET_KEY=.*/DJANGO_SECRET_KEY=ci-test-secret-key-not-for-production-0123456789/' .env
+          sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci-test-password/' .env
+          sed -i 's/DJANGO_ALLOWED_HOSTS=.*/DJANGO_ALLOWED_HOSTS=*/' .env
+          sed -i 's/NGINX_HTTP_PORT=.*/NGINX_HTTP_PORT=8087/' .env
+
+      - name: Bring up the stack
+        run: docker compose -f docker-compose.prod.yml up -d --build --wait
+
+      - name: Seed multiple tables with known row counts
+        run: |
+          docker compose -f docker-compose.prod.yml exec -T postgres \
+            psql -U docubot -d docubot << 'SQL'
+            CREATE TABLE IF NOT EXISTS _integrity_a (id int);
+            CREATE TABLE IF NOT EXISTS _integrity_b (id int, label text);
+            INSERT INTO _integrity_a VALUES (1), (2), (3), (4), (5);
+            INSERT INTO _integrity_b VALUES (1, 'a'), (2, 'b'), (3, 'c');
+            SQL
+
+      - name: Take a backup
+        run: bash scripts/backup-db.sh
+
+      - name: Verify backup integrity
+        run: |
+          BACKUP_FILE="$(ls -1t backups/docubot-*.sql.gz | head -1)"
+          echo "verifying $BACKUP_FILE"
+          bash scripts/verify-backup.sh "$BACKUP_FILE"
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.prod.yml logs --no-color || true
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down --remove-orphans -v
