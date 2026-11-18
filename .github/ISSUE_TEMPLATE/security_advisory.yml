@@ -1,0 +1,67 @@
+---
+name: Security advisory
+description: Report a security vulnerability. This form is for tracking only — sensitive reports should go through GitHub Private Vulnerability Reporting.
+title: "[SECURITY] "
+labels: [security]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Report security issues privately instead
+
+        **Do not paste exploit code, paths, or PoCs in this issue.** This
+        issue is public the moment you submit it.
+
+        For any vulnerability that could let an attacker reach the host,
+        the database, the document corpus, the backups, or the LLM-cost
+        budget, use
+        [GitHub Private Vulnerability Reporting](https://github.com/Abolfazlrwm/stacksmith/security/advisories/new)
+        instead — that channel keeps the report visible only to the
+        maintainer until a fix is ready. See [SECURITY.md](../SECURITY.md)
+        for the disclosure timeline and the scope.
+
+        This template is only for **publicly-known issues already
+        disclosed upstream** (a CVE in a dependency that has a public
+        advisory, a configuration mistake you have already fixed and
+        want to document, a hardening suggestion that does not reveal a
+        live exploit path).
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Django app (chat / documents / health / admin)
+        - Rate limiter / auth boundary
+        - Upload validation / ingestion
+        - Compose stack (app / worker / beat / postgres / redis)
+        - nginx / TLS
+        - Deploy / rollback scripts
+        - Backup / restore scripts
+        - CI workflows
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: cve
+    attributes:
+      label: Public CVE or advisory identifier (if any)
+      placeholder: CVE-2026-XXXX or GHSA-xxxx-xxxx-xxxx
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One paragraph. No exploit details — link the upstream advisory instead.
+    validations:
+      required: true
+  - type: textarea
+    id: affected-versions
+    attributes:
+      label: Affected versions
+      placeholder: v1.2.2 and earlier
+    validations:
+      required: true
+  - type: textarea
+    id: fix
+    attributes:
+      label: Proposed fix or mitigation
+      description: If you have one. Link to the upstream patch if it exists.

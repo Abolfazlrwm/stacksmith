@@ -1,0 +1,78 @@
+# Pre-commit hooks — local mirrors of the CI lint gates.
+#
+# Install once:
+#   pip install pre-commit
+#   pre-commit install --install-hooks -t pre-commit -t commit-msg
+#   pre-commit run --all-files   # run every hook once, see what fails
+#
+# After that, every `git commit` runs markdownlint, yamllint,
+# shellcheck, and commitlint on the staged files, and refuses the
+# commit if any fails. A green local run means a green CI run on the
+# lint gates (unit tests + drills still need CI).
+#
+# CI runs the same tools (see .github/workflows/lint.yml +
+# markdownlint.yml + commitlint.yml), so this is the fast-feedback
+# path, not a second source of truth. Keep the versions here in sync
+# with the workflow files when you bump them.
+---
+repos:
+  # Markdown — same rules as .markdownlint.json, same config CI uses.
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.43.0
+    hooks:
+      - id: markdownlint-cli2
+        # ADRs use inline HTML (<details>, <sub>, <sup>) which is
+        # allowed by .markdownlint.json; the hook reads that config.
+        args: ["--config", ".markdownlint.json"]
+
+  # YAML — same .yamllint config CI uses.
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: ["-c", ".yamllint"]
+
+  # Shell — scripts/ and .githooks/.
+  - repo: https://github.com/koalaman/shellcheck-precommit
+    rev: v0.10.0
+    hooks:
+      - id: shellcheck
+
+  # Python — the app code. Ruff is fast and covers flake8 + isort +
+  # pyupgrade in one tool. Not enforced by CI yet (this is the
+  # local-first path); if it proves useful we'll add a ruff.yml workflow.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      - id: ruff
+        args: ["--fix", "--exit-non-zero-on-fix"]
+      - id: ruff-format
+
+  # Conventional commits — same commitlint config as
+  # commitlint/commitlint.config.cjs, enforced by CI on every PR.
+  - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
+    rev: v9.18.0
+    hooks:
+      - id: commitlint
+        stages: [commit-msg]
+        additional_dependencies: ["@commitlint/config-conventional"]
+
+  # Generic hygiene — trailing whitespace, large files, merge
+  # conflict markers, private keys. Cheap and catches a lot.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ["--maxkb=512"]
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: check-toml
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+
+# Run the commit-msg hook (commitlint) on every commit, not just on
+# pre-push. The earlier the feedback, the cheaper the fix.
+default_install_hook_types: [pre-commit, commit-msg]
