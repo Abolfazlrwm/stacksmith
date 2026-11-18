@@ -38,11 +38,16 @@ INSTALLED_APPS = [
 # chat and documents APIs are not CSRF-protected today (the reverse
 # proxy authenticates and sets X-Docubot-Owner), but the admin and any
 # future session view are.
+#
+# RateLimitMiddleware runs after CommonMiddleware (so request.path is
+# resolved) and before auth — it must reject a flood before the view
+# (and its LLM call) runs. See ADR-0038.
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "config.ratelimit.RateLimitMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",

@@ -70,6 +70,11 @@ jobs:
             echo "DOCUBOT_LLM_PROVIDER=stub"
             echo "DOCUBOT_EMBED_PROVIDER=stub"
             echo "DOCUBOT_UPLOAD_ROOT=/data/uploads"
+            # Raise the rate limit so the load test's 10-VU ramp does
+            # not hit 429s (production keeps the 60/m default — see
+            # ADR-0038). The stub LLM is free, so there is no cost
+            # cascade to guard against here.
+            echo "DOCUBOT_RATELIMIT_RATE=10000/m"
           } >> .env
 
       - name: Bring up the stack

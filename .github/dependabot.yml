@@ -1,11 +1,70 @@
 ---
+# Dependabot configuration. Opens PRs for outdated dependencies across
+# every ecosystem this repo touches. The 10 vulnerabilities GitHub
+# warns about on every push are mostly in `app/requirements.txt` and
+# `commitlint/package.json` — neither was covered before this file
+# added pip + npm.
+#
+# All ecosystems are grouped (one PR per ecosystem per week, not one
+# PR per package) so the PR queue stays manageable for a
+# single-maintainer project.
 version: 2
 updates:
+  # Python app dependencies (Django, DRF, PyMuPDF, sentence-transformers,
+  # pgvector, openai, anthropic, etc.).
+  - package-ecosystem: pip
+    directory: "/app"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      python-deps:
+        patterns: ["*"]
+    labels: ["dependencies", "python"]
+    commit-message:
+      prefix: "build(deps)"
+      include: "scope"
+
+  # Node tooling — the commitlint config lives in commitlint/.
+  - package-ecosystem: npm
+    directory: "/commitlint"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      npm-deps:
+        patterns: ["*"]
+    labels: ["dependencies", "javascript"]
+    commit-message:
+      prefix: "build(deps)"
+      include: "scope"
+
+  # Base images used by the Dockerfiles (python, postgres, redis, nginx).
   - package-ecosystem: docker
     directory: "/"
     schedule:
       interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "docker"]
+    commit-message:
+      prefix: "build(deps)"
+      include: "scope"
+
+  # GitHub Actions used by the workflows (checkout, setup-python,
+  # markdownlint-cli, commitlint action, etc.).
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      actions-deps:
+        patterns: ["*"]
+    labels: ["dependencies", "github-actions"]
+    commit-message:
+      prefix: "ci(deps)"
+      include: "scope"

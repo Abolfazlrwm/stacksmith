@@ -6,6 +6,109 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.3] — 2026-11-18
+
+The repo-professionalization release. v1.2.2 hardened the app
+boundary; v1.2.3 closes the gap between "the app is secure" and "the
+repo is a place a stranger would feel safe contributing to": a rate
+limiter on the LLM-bearing endpoint, a fixed version-reporting bug,
+refreshed governance docs, and the missing community plumbing
+(OpenAPI spec, dependabot for pip/npm, pre-commit hooks, security
+issue template).
+
+### Added — rate limiting (ADR-0038)
+
+- **`config/ratelimit.py`** — a fixed-window rate limiter middleware
+  that caps `/api/chat/` at **60 requests per minute per owner**
+  (X-Docubot-Owner, falling back to client IP). Health probes and
+  admin are exempt so a 429 cannot roll back a good release. A 429
+  carries `Retry-After` and `X-RateLimit-*` headers so clients can
+  self-throttle.
+- **Fail-open on cache failure**: if Redis is unreachable the limiter
+  lets the request through (the readiness probe catches Redis-down
+  independently) rather than becoming a new single point of failure.
+- **No new dependency**: one Redis `INCR` + one `EXPIRE` per request.
+  Chosen over `django-ratelimit` (third-party), sliding-window
+  (sorted set, more memory), and nginx `limit_req`-only (cannot key
+  on the post-auth owner header).
+- **`DOCUBOT_RATELIMIT_RATE` env var** lets operators tune the limit
+  (or disable it for a load test) without a code change. Production
+  keeps the 60/m default; the k6 load-test workflow sets it to
+  `10000/m` so its 10-VU ramp does not hit 429s.
+- **`app/tests/test_ratelimit.py`** — 20 new tests covering the
+  policy parser, the exempt paths, the counter, the 429 response
+  shape, per-owner isolation, IP fallback, the fail-open path, and
+  the env-var override. Uses a locmem cache fixture + a unique owner
+  per test so cached counters never bleed across tests.
+
+### Fixed — version drift
+
+- **`GET /` no longer reports a hardcoded version.** Before v1.2.3
+  the version in `config/urls.py` was a string literal (`"1.2.0"`)
+  that drifted out of sync on every release — the v1.2.2 release
+  shipped with `/` reporting `1.2.0`. Now reads the `VERSION` file at
+  import time. Two new tests (`test_version.py`) pin the two stay in
+  sync.
+
+### Changed — governance docs reflect v1.2.2
+
+- **`SECURITY.md`** rewritten. v0.3.0 → v1.2.2 supported-versions
+  table. Removes the stale "out of scope: docubot is a different
+  repo" clause (docubot now lives in this repo, ADR-0036). Documents
+  the v1.2.2 app-hardening posture (ADR-0037) and the v1.2.3
+  rate-limit posture (ADR-0038). Adds a disclosure-policy section
+  and a "known weak spots" list so a reporter can check the likely
+  component first.
+- **`CONTRIBUTING.md`** refreshed. Documents the local unit-test
+  invocation (the exact dep-filter `unit.yml` uses, the 112-test
+  count). Branch-protection table now lists `unit` and `commitlint`
+  as required, notes the 36-check drill matrix is advisory. pre-commit
+  config referenced (was `.githooks` only).
+
+### Added — community plumbing
+
+- **`.github/ISSUE_TEMPLATE/security_advisory.yml`** — new template
+  that redirects live-exploit reports to GitHub Private Vulnerability
+  Reporting; only for already-disclosed upstream CVEs.
+- **`.github/ISSUE_TEMPLATE/config.yml`** — disables blank issues,
+  adds contact links for security (private) and discussions.
+- **`.github/pull_request_template.md`** — adds Type + Breaking
+  changes sections; fixes the stale `docs/conventions.md` link →
+  ADR-0032; adds the "if `app/` changed, pytest passes locally"
+  check.
+- **`.github/dependabot.yml`** — adds **pip** (`app/`) and **npm**
+  (`commitlint/`) ecosystems (neither was covered; this is why
+  GitHub warns about 10 vulnerabilities on every push). Weekly
+  cadence, grouped PRs, conventional-commit prefixes. Also covers
+  docker + github-actions as before.
+- **`.pre-commit-config.yaml`** (new) — markdownlint-cli2, yamllint,
+  shellcheck, ruff + ruff-format, commitlint, and the standard
+  pre-commit-hooks (trailing whitespace, large files, merge-conflict
+  markers, private keys). Mirrors the CI lint gates so a green local
+  run means a green CI lint run.
+
+### Added — OpenAPI for the product API
+
+- **`docs/api/product-openapi.json`** (new) — hand-written OpenAPI
+  3.0.3 spec for `/api/documents/` (GET list, POST upload with all
+  five 400 examples: unsupported extension, magic-byte mismatch,
+  not UTF-8, path traversal, filename too long) and `/api/chat/`
+  (POST with 200 / 400 / 404 / 429, `X-RateLimit-*` headers).
+  Schemas: Document, ChatRequest, Citation, ChatResponse, Error.
+- **`docs/api/README.md`** (new) explains the hand-written choice
+  (stable, readable, no extra dep) and how to validate locally.
+
+### Not changed (deliberately)
+
+- **No `pytest-django` dependency.** The new rate-limit tests use
+  `monkeypatch` + `RequestFactory` (the same pattern `test_health`
+  uses), so `unit.yml`'s `pytest==8.3.3` install is enough. Adding
+  `pytest-django` would have meant a new dep + a CI workflow change.
+- **No generated OpenAPI.** A hand-written spec only changes when
+  the contract changes, which is what an integrator cares about;
+  `drf-spectacular` would pull a runtime dep + a generation step.
+  The unit suite pins the contracts that matter.
+
 ## [1.2.2] — 2026-11-17
 
 The hardening release. v1.2.0 shipped the docubot product (ADR-0036)

@@ -1,0 +1,286 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "docubot product API",
+    "description": "The document-chat product surface of stacksmith. Upload a document, ask a question, get an answer grounded in your corpus with citations back to the source passages.\n\nAuthentication is delegated to the reverse proxy: nginx authenticates the client and sets the `X-Docubot-Owner` header on the request to the app. The app uses that header as the owner identity for multi-user isolation (every uploaded document, every chat conversation is scoped to one owner). A future phase can swap in a real session/JWT without changing the view code.\n\nRate limiting: `/api/chat/` is capped at 60 requests per minute per owner (X-Docubot-Owner, falling back to client IP). A 429 carries `Retry-After` and `X-RateLimit-*` headers. See ADR-0038.\n\nUpload validation: every upload passes an extension allow-list + magic-byte sniff (PDF) + UTF-8 decode check (text/markdown) before any bytes reach disk. See ADR-0037.",
+    "version": "1.2.2",
+    "license": {
+      "name": "MIT",
+      "url": "https://github.com/Abolfazlrwm/stacksmith/blob/main/LICENSE"
+    },
+    "contact": {
+      "url": "https://github.com/Abolfazlrwm/stacksmith/security/advisories/new",
+      "name": "Report a security issue (private)"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local (through nginx)"
+    },
+    {
+      "url": "https://docubot.example.com",
+      "description": "Production"
+    },
+    {
+      "url": "http://localhost:8000",
+      "description": "Direct (bypassing nginx — local dev + readiness probe only)"
+    }
+  ],
+  "tags": [
+    {"name": "documents", "description": "Upload and list documents"},
+    {"name": "chat", "description": "Ask a question grounded in the corpus"}
+  ],
+  "paths": {
+    "/api/documents/": {
+      "get": {
+        "tags": ["documents"],
+        "summary": "List this owner's documents",
+        "description": "Returns every document owned by the requesting owner, with its ingestion status so the UI can show a progress indicator. Documents are scoped by the `X-Docubot-Owner` header; an owner never sees another owner's documents.",
+        "operationId": "listDocuments",
+        "parameters": [
+          {
+            "name": "X-Docubot-Owner",
+            "in": "header",
+            "required": false,
+            "schema": {"type": "string"},
+            "description": "Owner identity, set by the reverse proxy after auth. Defaults to 'anonymous' when absent."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of documents (may be empty)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/Document"}
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["documents"],
+        "summary": "Upload a document",
+        "description": "Accepts a multipart upload of a text, markdown, or PDF file. The bytes are validated (extension allow-list + magic-byte sniff for PDF + UTF-8 decode check for text kinds) BEFORE any bytes are written to disk (ADR-0037). On success, the raw bytes are stored on the upload volume keyed by sha256, a Document row is created in status=pending, and the post_save signal enqueues the ingest task. If this owner already has this exact file (same sha256), the existing row is returned with status 200 instead of creating a duplicate.",
+        "operationId": "uploadDocument",
+        "parameters": [
+          {
+            "name": "X-Docubot-Owner",
+            "in": "header",
+            "required": false,
+            "schema": {"type": "string"},
+            "description": "Owner identity, set by the reverse proxy after auth."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "The uploaded file. Accepted extensions: .pdf, .md, .markdown, .txt, .text. Max 50 MB (enforced at the web server). Filenames containing path separators (/ or \\) are rejected with 400."
+                  },
+                  "title": {
+                    "type": "string",
+                    "maxLength": 512,
+                    "description": "Optional human-readable title. Defaults to the filename stem."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Document created and queued for ingestion",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Document"}
+              }
+            }
+          },
+          "200": {
+            "description": "Document already exists for this owner (dedup by sha256). The existing row is returned, status not re-queued.",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Document"}
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed. The detail field explains which layer rejected the upload.",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Error"},
+                "examples": {
+                  "unsupported extension": {
+                    "value": {"detail": "unsupported file type: 'evil.exe'; accepted extensions: ['.markdown', '.md', '.pdf', '.text', '.txt']"}
+                  },
+                  "magic byte mismatch": {
+                    "value": {"detail": "file 'evil.pdf' claims to be a pdf but its content does not match the 'pdf' magic bytes; refusing upload"}
+                  },
+                  "not utf-8": {
+                    "value": {"detail": "file 'binary.txt' is not valid UTF-8 text; refusing upload"}
+                  },
+                  "path traversal": {
+                    "value": {"detail": "filename must not contain path separators"}
+                  },
+                  "filename too long": {
+                    "value": {"detail": "filename must be 1..255 chars"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/chat/": {
+      "post": {
+        "tags": ["chat"],
+        "summary": "Ask a question grounded in the owner's documents",
+        "description": "Retrieves the top-k most relevant passages for the question (RAG over pgvector), passes them to the LLM adapter as context, persists the user message and the assistant answer with citations, and returns the answer plus the citations.\n\nThe answer is grounded: the LLM is prompted to only use the retrieved context and to cite passages with [1], [2], ... markers. The view maps those markers back to the actual chunks for structured citations.\n\nRate-limited at 60 requests per minute per owner (ADR-0038). A 429 carries Retry-After and X-RateLimit-* headers.",
+        "operationId": "askChat",
+        "parameters": [
+          {
+            "name": "X-Docubot-Owner",
+            "in": "header",
+            "required": false,
+            "schema": {"type": "string"},
+            "description": "Owner identity, set by the reverse proxy after auth."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/ChatRequest"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Answer with citations",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "schema": {"type": "integer"},
+                "description": "The per-minute request limit for this owner on this endpoint."
+              },
+              "X-RateLimit-Remaining": {
+                "schema": {"type": "integer"},
+                "description": "Requests remaining in the current window."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ChatResponse"}
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (question missing, > 4000 chars, top_k out of [1, 20]).",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Error"}
+              }
+            }
+          },
+          "404": {
+            "description": "conversation_id was given but no conversation with that id belongs to this owner.",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Error"},
+                "example": {"detail": "conversation not found"}
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. The owner has sent more than 60 chat requests in the current minute window.",
+            "headers": {
+              "Retry-After": {
+                "schema": {"type": "integer"},
+                "description": "Seconds until the next window edge."
+              },
+              "X-RateLimit-Limit": {"schema": {"type": "integer"}},
+              "X-RateLimit-Remaining": {"schema": {"type": "integer", "example": 0}}
+            },
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Error"},
+                "example": {"detail": "rate limit exceeded"}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Document": {
+        "type": "object",
+        "required": ["id", "title", "kind", "source", "status", "byte_size", "created_at", "updated_at"],
+        "properties": {
+          "id": {"type": "integer", "example": 42},
+          "title": {"type": "string", "example": "Q3 report"},
+          "kind": {"type": "string", "enum": ["pdf", "markdown", "text"], "example": "pdf"},
+          "source": {"type": "string", "description": "The original uploaded filename.", "example": "q3-report.pdf"},
+          "status": {"type": "string", "enum": ["pending", "ingesting", "ready", "failed"], "example": "ready"},
+          "chunk_count": {"type": "integer", "description": "Number of chunks the document was split into during ingestion. 0 while pending.", "example": 12},
+          "byte_size": {"type": "integer", "example": 1048576},
+          "error": {"type": "string", "nullable": true, "description": "Error message if status is 'failed'.", "example": null},
+          "created_at": {"type": "string", "format": "date-time"},
+          "updated_at": {"type": "string", "format": "date-time"}
+        }
+      },
+      "ChatRequest": {
+        "type": "object",
+        "required": ["question"],
+        "properties": {
+          "question": {"type": "string", "maxLength": 4000, "example": "What was Q3 revenue?"},
+          "conversation_id": {"type": "integer", "nullable": true, "description": "If given, the message is appended to this conversation. The conversation must belong to the requesting owner.", "example": 7},
+          "top_k": {"type": "integer", "minimum": 1, "maximum": 20, "default": 5, "description": "How many passages to retrieve and pass to the LLM as context."}
+        }
+      },
+      "Citation": {
+        "type": "object",
+        "required": ["chunk_id", "document_id", "document_title", "ordinal", "score", "snippet"],
+        "properties": {
+          "chunk_id": {"type": "integer"},
+          "document_id": {"type": "integer"},
+          "document_title": {"type": "string", "example": "Q3 report"},
+          "ordinal": {"type": "integer", "description": "The [n] marker in the answer text that this citation corresponds to.", "example": 1},
+          "score": {"type": "number", "format": "float", "description": "Cosine similarity score (0-1) from the retrieval step.", "example": 0.87},
+          "snippet": {"type": "string", "description": "The retrieved passage text.", "example": "Q3 revenue was $4.2M, up 18% YoY..."}
+        }
+      },
+      "ChatResponse": {
+        "type": "object",
+        "required": ["answer", "conversation_id", "message_id", "citations", "retrieved_count", "model"],
+        "properties": {
+          "answer": {"type": "string", "example": "Q3 revenue was $4.2M, up 18% year over year [1]."},
+          "conversation_id": {"type": "integer"},
+          "message_id": {"type": "integer"},
+          "citations": {"type": "array", "items": {"$ref": "#/components/schemas/Citation"}},
+          "retrieved_count": {"type": "integer", "description": "Number of passages retrieved from pgvector.", "example": 5},
+          "model": {"type": "string", "description": "The LLM model that produced the answer (provider/model format).", "example": "stub/deterministic"}
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["detail"],
+        "properties": {
+          "detail": {"type": "string", "description": "Human-readable error message."}
+        }
+      }
+    }
+  }
+}

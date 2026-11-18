@@ -1,17 +1,17 @@
 # StackSmith
 
 [![lint](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/lint.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/lint.yml)
+[![unit](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/unit.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/unit.yml)
 [![smoke](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/smoke.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/smoke.yml)
 [![restore drill](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/restore-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/restore-drill.yml)
 [![disaster recovery](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/disaster-recovery-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/disaster-recovery-drill.yml)
 [![latency SLI](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/latency-sli-drill.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/latency-sli-drill.yml)
 [![cosign at deploy](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/cosign-at-deploy.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/cosign-at-deploy.yml)
 [![security](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/codeql.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/codeql.yml)
-[![unit](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/unit.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/unit.yml)
+[![container scan](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/container-scan.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/container-scan.yml)
 [![Release](https://img.shields.io/github/v/release/Abolfazlrwm/stacksmith?sort=semver)](https://github.com/Abolfazlrwm/stacksmith/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-
-**deploys this ← [docubot](https://github.com/Abolfazlrwm/docubot)**
+[![Conventional Commits](https://img.shields.io/badge/commits-conventional-fe5d0f)](https://github.com/Abolfazlrwm/stacksmith/blob/main/docs/adr/0032-enforce-conventional-commits.md)
 
 ## What this is
 
@@ -40,6 +40,13 @@ images, and the runbooks + SLOs that make it operable.
 > `SECURE_*` headers at the app layer, upload validation (extension
 > allow-list + magic-byte sniff + UTF-8 check + path-traversal
 > rejection), and 19 new unit tests for the upload gate. See ADR-0037.
+>
+> **v1.2.3 — repo professionalization.** Rate limiting on
+> `/api/chat/` (60/min per owner, ADR-0038), dynamic version in `/`,
+> refreshed `SECURITY.md` + `CONTRIBUTING.md`, dependabot for pip +
+> npm, a `.pre-commit-config.yaml` mirroring CI, an OpenAPI spec for
+> the product API, and a security-issue template. 23 new unit tests
+> (suite now 112).
 
 ## Product features (docubot)
 
@@ -69,8 +76,10 @@ images, and the runbooks + SLOs that make it operable.
   signing + verify gate.
 - **App hardening** — `ALLOWED_HOSTS` fails closed, `SECURE_*` headers
   set at the app (not just the proxy), upload path validates extension,
-  magic bytes, UTF-8, and rejects path-traversal names; 89 pytest
-  unit tests guard the app's security edges (ADR-0037).
+  magic bytes, UTF-8, and rejects path-traversal names (ADR-0037);
+  `/api/chat/` rate-limited at 60/min per owner to cap LLM cost
+  cascades (ADR-0038); 112 pytest unit tests guard the app's security
+  edges.
 - **Infrastructure as code** — Terraform for Hetzner + DigitalOcean.
 
 ## Stability
