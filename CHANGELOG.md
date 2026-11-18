@@ -31,11 +31,15 @@ issue template).
   Chosen over `django-ratelimit` (third-party), sliding-window
   (sorted set, more memory), and nginx `limit_req`-only (cannot key
   on the post-auth owner header).
-- **`app/tests/test_ratelimit.py`** — 19 new tests covering the
+- **`DOCUBOT_RATELIMIT_RATE` env var** lets operators tune the limit
+  (or disable it for a load test) without a code change. Production
+  keeps the 60/m default; the k6 load-test workflow sets it to
+  `10000/m` so its 10-VU ramp does not hit 429s.
+- **`app/tests/test_ratelimit.py`** — 20 new tests covering the
   policy parser, the exempt paths, the counter, the 429 response
-  shape, per-owner isolation, IP fallback, and the fail-open path.
-  Uses a locmem cache fixture + a unique owner per test so cached
-  counters never bleed across tests.
+  shape, per-owner isolation, IP fallback, the fail-open path, and
+  the env-var override. Uses a locmem cache fixture + a unique owner
+  per test so cached counters never bleed across tests.
 
 ### Fixed — version drift
 

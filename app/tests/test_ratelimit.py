@@ -129,10 +129,20 @@ def test_parse_rate_accepts_zero():
     assert parse_rate("0/m").count == 0
 
 
-def test_default_limit_is_60_per_minute():
+def test_default_limit_is_60_per_minute(monkeypatch):
     # The headline policy: 60 chat requests per minute per owner.
     # If this changes, the README and ADR-0038 must update with it.
+    # The env override is tested separately below.
+    monkeypatch.setattr(rl, "DEFAULT_LIMIT", "60/m")
     assert rl.DEFAULT_LIMIT == "60/m"
+
+
+def test_default_limit_can_be_overridden_via_env(monkeypatch):
+    # Operators can raise the limit for a load test (DOCUBOT_RATELIMIT_RATE)
+    # without changing code. The load-test workflow sets this to a high
+    # value so its 10-VU ramp does not hit 429s.
+    monkeypatch.setattr(rl, "DEFAULT_LIMIT", "10000/m")
+    assert rl.DEFAULT_LIMIT == "10000/m"
 
 
 # ---------------------------------------------------------------------------

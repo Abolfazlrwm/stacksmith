@@ -30,6 +30,7 @@ sliding-window and over a third-party library.
 from __future__ import annotations
 
 import logging
+import os
 import re
 import time
 from dataclasses import dataclass
@@ -43,7 +44,14 @@ log = logging.getLogger(__name__)
 # Default policy applied to any view that opts in via DECORATE_VIEWS or
 # the RATELIMIT attribute. Override per-view by setting RATELIMIT on
 # the view class.
-DEFAULT_LIMIT = "60/m"
+#
+# Operators can tune the limit (or disable it for a load test) with
+# DOCUBOT_RATELIMIT_RATE. Production keeps the 60/m default; the k6
+# load test sets DOCUBOT_RATELIMIT_RATE=10000/m so its 10-VU ramp
+# does not hit 429s. Setting it to "0/m" effectively disables the
+# limiter (every request is under a zero budget is impossible, so the
+# check is treated as exempt — see _resolve).
+DEFAULT_LIMIT = os.environ.get("DOCUBOT_RATELIMIT_RATE", "60/m")
 
 # Views that are rate-limited by default (the expensive, anonymous,
 # externally-facing ones). Health probes are NOT in here — they are
