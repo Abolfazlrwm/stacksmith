@@ -6,6 +6,62 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.4] — 2026-11-18
+
+The CI-hygiene release. v1.2.3 professionalized the repo surface;
+v1.2.4 makes the CI itself behave like a professional pipeline: runs
+that are superseded by a newer push cancel themselves instead of
+queuing behind 30 stale jobs, and the unit suite is reachable from
+`make test` (it was documented in CONTRIBUTING but had no Makefile
+target).
+
+### Added — concurrency cancellation
+
+Every push-triggered workflow now declares a `concurrency:` block:
+
+```yaml
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+```
+
+A fast push cadence previously queued up to 30 stale runs (one per
+workflow) that finished minutes after the developer had already moved
+on — wasting CI minutes and slowing feedback on the run that mattered.
+Now a new commit cancels the in-progress run of the same workflow on
+the same ref. Different branches and different PRs get their own
+groups and never interfere with each other.
+
+**26 workflows updated.** The 4 scheduled ones (codeql, cosign-attest,
+cosign-verify, stale) were deliberately skipped: a half-finished
+backup, scan, or stale-sweep interrupted mid-run leaves inconsistent
+state, so those overlap instead. The generator script
+(`scripts/add-concurrency.py`) is checked in so a future workflow
+inherits the policy by re-running it.
+
+### Added — `make test` and `make test-quick`
+
+The Makefile now exposes the unit suite that CONTRIBUTING.md tells
+contributors to run locally:
+
+```bash
+make test         # run the full Django unit suite (matches CI's unit.yml)
+make test-quick   # same, but stop at the first failure (-x -q)
+```
+
+The target creates a `~/.venv` if missing, installs only the
+unit-test dep subset (the same `grep -vE '^(torch|sentence-transformers)=='`
+filter `unit.yml` uses), and runs `pytest app/tests`. No new
+dependency on `pytest-django` — the suite is 113 tests in ~1.2 s.
+
+### Added — CODE_OF_CONDUCT.md
+
+The [Contributor Covenant v2.1](CODE_OF_CONDUCT.md), linked from
+CONTRIBUTING.md. Reports go to
+`abolfazlrwm@users.noreply.github.com` and are handled
+confidentially; security reports still go through the private channel
+in SECURITY.md.
+
 ## [1.2.3] — 2026-11-18
 
 The repo-professionalization release. v1.2.2 hardened the app
