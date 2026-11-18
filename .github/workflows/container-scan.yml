@@ -11,6 +11,15 @@ permissions:
   contents: read
   security-events: write
 
+
+concurrency:
+  # Cancel in-progress runs of this workflow on the same ref when a new
+  # commit lands. A fast push cadence otherwise queues stale runs that
+  # finish minutes after the developer moved on — wasting CI minutes.
+  # Different branches / different PRs get their own group, so they do
+  # not interfere with each other.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   trivy:
     name: trivy scan app image

@@ -173,3 +173,10 @@ limitation rather than a defect.
 
 For security issues, see [SECURITY.md](SECURITY.md) — do not open a
 public issue.
+
+## Code of Conduct
+
+Participation in this community is governed by the
+[Contributor Covenant v2.1](CODE_OF_CONDUCT.md). By participating you
+agree to uphold its standards. Reports go to
+`abolfazlrwm@users.noreply.github.com` and are handled confidentially.
