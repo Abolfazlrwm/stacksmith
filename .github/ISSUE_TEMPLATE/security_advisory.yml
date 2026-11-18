@@ -1,6 +1,6 @@
 ---
 name: Security advisory
-description: Report a security vulnerability. This form is for tracking only — sensitive reports should go through GitHub Private Vulnerability Reporting.
+description: Publicly-known vulnerability (upstream CVE). For live exploits, use private reporting.
 title: "[SECURITY] "
 labels: [security]
 body:
