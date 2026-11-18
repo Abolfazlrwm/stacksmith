@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/stale@v9
+      - uses: actions/stale@v11
         with:
           # Issues inactive for 30 days get a warning, closed after 7 more.
           days-before-issue-stale: 30
