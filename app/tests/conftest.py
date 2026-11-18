@@ -25,6 +25,15 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 # network: every test that cares sets these explicitly via monkeypatch.
 os.environ.setdefault("DOCUBOT_EMBED_PROVIDER", "stub")
 os.environ.setdefault("DOCUBOT_LLM_PROVIDER", "stub")
+# Django's test client sends Host: testserver. Production settings
+# default ALLOWED_HOSTS to a closed list (ADR-0037), so tests that hit
+# the client would 400 with DisallowedHost unless we add it. Set before
+# django.setup() so the settings module sees it.
+_existing = os.environ.get("DJANGO_ALLOWED_HOSTS", "")
+if "testserver" not in _existing:
+    os.environ["DJANGO_ALLOWED_HOSTS"] = (
+        f"{_existing},testserver" if _existing else "testserver"
+    )
 
 import django  # noqa: E402
 

@@ -56,16 +56,17 @@ ADR-NNNN: <title>
 | 0034   | [nginx exporter and the OSS latency gap](0034-nginx-exporter-and-oss-latency-gap.md) | accepted | 2026-12-22 |
 | 0035   | [latency and 5xx SLI from promtail metrics pipeline](0035-latency-sli-from-promtail-metrics.md) | accepted | 2026-12-22 |
 | 0036   | [docubot — real product surface, not a health-check stub](0036-docubot-real-product-surface.md) | accepted | 2026-11-16 |
+| 0037   | [app hardening — fail-closed defaults, upload validation](0037-app-hardening-fail-closed-defaults.md) | accepted | 2026-11-17 |
 
 ## By theme
 
 - **Deployment** — 0001, 0002, 0008, 0025
 - **Backup and recovery** — 0003, 0006, 0007, 0012, 0023
 - **Observability** — 0004, 0009, 0014, 0011, 0030, 0033, 0034
-- **Security and supply chain** — 0005, 0013, 0016, 0017, 0019, 0020, 0023, 0025
+- **Security and supply chain** — 0005, 0013, 0016, 0017, 0019, 0020, 0023, 0025, 0037
 - **Performance** — 0018
 - **Infrastructure** — 0015, 0020, 0028
-- **Product** — 0036
+- **Product** — 0036, 0037
 - **Process and stability** — 0031, 0032
 
 ## Writing a new ADR

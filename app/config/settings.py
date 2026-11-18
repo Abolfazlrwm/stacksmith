@@ -6,7 +6,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-insecure-key-change-me")
 DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",")
+
+# ALLOWED_HOSTS — never default to "*" in production. Local dev can pass
+# "*" explicitly via DJANGO_ALLOWED_HOSTS=*, but the default is the
+# canonical hostname plus the loopback addresses the in-container
+# readiness probe uses, so a misconfigured prod deploy fails closed.
+_ALLOWED_HOSTS_RAW = os.environ.get(
+    "DJANGO_ALLOWED_HOSTS",
+    "docubot.example.com,localhost,127.0.0.1",
+)
+ALLOWED_HOSTS = [h.strip() for h in _ALLOWED_HOSTS_RAW.split(",") if h.strip()]
 
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
@@ -23,12 +32,21 @@ INSTALLED_APPS = [
     "chat",
 ]
 
+# SecurityMiddleware must be first to set HSTS / redirect / content-type
+# headers. CsrfViewMiddleware and XFrameOptionsMiddleware are
+# defense-in-depth for the admin and future session-backed views — the
+# chat and documents APIs are not CSRF-protected today (the reverse
+# proxy authenticates and sets X-Docubot-Owner), but the admin and any
+# future session view are.
 MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -50,6 +68,35 @@ CORS_ALLOWED_ORIGINS = [
     if o
 ]
 CORS_ALLOW_ALL_ORIGINS = DEBUG
+
+# --- Security headers (ADR-0037) -------------------------------------
+# The reverse proxy (nginx) sets these too, but the app must not rely on
+# the proxy alone — the canary probe and any direct port-8000 access
+# (local dev, the readiness probe inside the container network) should
+# also see hardened responses. Defense-in-depth.
+#
+# HSTS, content-type nosniff, referrer policy, and X-Frame-Options are
+# safe to set unconditionally: they only affect response headers, never
+# request routing, so they cannot break a health probe.
+#
+# SECURE_SSL_REDIRECT is the dangerous one: it issues a 301 to https://
+# for every http:// request. The in-container readiness probe and the
+# blue/green canary probe hit the app over plain HTTP (nginx has not
+# terminated TLS yet at that point), so a redirect there makes the
+# probe see 301 forever and the stack never reports healthy. Default
+# off; operators turn it on explicitly with DJANGO_SSL_REDIRECT=true in
+# the rare case where the app is directly internet-facing.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SSL_REDIRECT", "false").lower() == "true"
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0  # 1 year, prod only
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+# Belt and suspenders: even if SSL redirect is on, health probes must
+# not be redirected (the in-container probe is always plain HTTP).
+SECURE_REDIRECT_EXEMPT = [r"^/health/"]
+X_FRAME_OPTIONS = "DENY"
 
 # DRF — no per-credential auth yet; the reverse proxy sets X-Docubot-Owner
 # after performing its own auth. See docs/security.md.

@@ -35,6 +35,11 @@ images, and the runbooks + SLOs that make it operable.
 > v1.1.x the `app/` directory was a Django health-check stub; the deck
 > and this README described a document-chat product that did not exist
 > in code. v1.2.0 ships that product. See ADR-0036.
+>
+> **v1.2.2 — the hardening release.** Fail-closed `ALLOWED_HOSTS`,
+> `SECURE_*` headers at the app layer, upload validation (extension
+> allow-list + magic-byte sniff + UTF-8 check + path-traversal
+> rejection), and 19 new unit tests for the upload gate. See ADR-0037.
 
 ## Product features (docubot)
 
@@ -62,6 +67,10 @@ images, and the runbooks + SLOs that make it operable.
   ratio < 2% (ADR-0033, ADR-0035).
 - **Security** — CodeQL, Trivy, dependency review, SBOM, cosign image
   signing + verify gate.
+- **App hardening** — `ALLOWED_HOSTS` fails closed, `SECURE_*` headers
+  set at the app (not just the proxy), upload path validates extension,
+  magic bytes, UTF-8, and rejects path-traversal names; 89 pytest
+  unit tests guard the app's security edges (ADR-0037).
 - **Infrastructure as code** — Terraform for Hetzner + DigitalOcean.
 
 ## Stability
