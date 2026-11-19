@@ -6,6 +6,71 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.5] — 2026-11-19
+
+The showcase release. v1.2.4 made the CI behave like a professional
+pipeline; v1.2.5 makes the project *visible* like one. A reviewer, a
+hiring manager, or an instructor can now see the product end-to-end
+and the code behind each feature side by side, in a browser, with no
+backend to run.
+
+### Added — live interactive showcase
+
+A single self-contained HTML page (`app/templates/demo.html`) that
+shows the product and the code behind it side by side:
+
+- A live chat demo over the real sample corpus (`tests/demo-corpus/`)
+  with simulated RAG + citations — so a visitor can ask a question
+  and see the answer with `sim = 0.86` style scores, without docker.
+- Real source excerpts from `ChatView.post()`, `retrieve()`, and
+  `validate_upload()` rendered beside the feature they implement.
+- An interactive upload-validation demo: click `payload.exe` /
+  `evil.pdf` / `binary.txt` and see the exact layer that rejects it.
+- A 12-node architecture diagram (4 layers: edge → app → data → obs),
+  the version timeline v1.2.0 → v1.2.5, and a 16-item security
+  checklist mapping each control to the file or workflow that
+  enforces it.
+
+The showcase is published to GitHub Pages at
+<https://abolfazlrwm.github.io/stacksmith/> on every push to `main`
+by `deploy-demo-pages.yml`. The same file is served in-app at
+`/demo/` on a running stack — one source of truth, two surfaces.
+
+### Added — `/demo/` route
+
+`GET /demo/` serves the showcase HTML through Django's `TemplateView`,
+so a running stack exposes the same page Pages publishes. The route is
+covered by 6 new unit tests (`test_demo_and_version.py`) that pin:
+the route resolves, returns 200 with the product name, the file is
+substantial (>20 KB), the chat UI no longer hardcodes a version, and
+the CHANGELOG has an entry for the current VERSION.
+
+### Fixed — chat UI version drift (again)
+
+The brand badge in `app/templates/chat.html` was hardcoded to
+`v1.2.0` and had drifted through v1.2.2, v1.2.3, and v1.2.4 without
+the badge ever updating — the same class of bug v1.2.3 fixed for the
+`/` endpoint. The badge now fetches `/` at runtime and writes the
+real version into the element. A unit test pins that the hardcoded
+`>v1.2.x<` marker is gone, so this cannot silently drift again.
+
+### Added — branding
+
+- `docs/logo.svg` — an SVG logo (document spine + chat bubble + live
+  indicator dot) in the app's palette. Linked in the README header
+  and embedded as an inline data-URI favicon in both `chat.html` and
+  `demo.html` (so the favicon works on Pages with no extra request).
+- `FUNDING.yml` — powers the "Sponsor" button on the repo page.
+- README now opens with a live-demo callout, a Pages badge, the
+  logo, and a Quick Start that lists the three in-app URLs
+  (`/`, `/app/`, `/demo/`).
+
+### Changed
+
+- README's ADR count was stale (said "30 ADRs", actually 33) — fixed.
+- Test suite: 113 → 119 (+6 new tests for the showcase and version
+  plumbing).
+
 ## [1.2.4] — 2026-11-18
 
 The CI-hygiene release. v1.2.3 professionalized the repo surface;

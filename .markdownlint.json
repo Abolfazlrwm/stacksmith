@@ -17,9 +17,9 @@ MD003:
   style: atx
 
 # Inline HTML: allow it — we use <details>, <sub>, <sup> in ADRs and
-# the architecture doc.
+# the architecture doc, and <img> for the logo in README.
 MD033:
-  allowed_elements: [details, summary, sub, sup, br, kbd]
+  allowed_elements: [details, summary, sub, sup, br, kbd, img]
 
 # Fenced code blocks: require a language tag for syntax highlighting.
 MD040: true

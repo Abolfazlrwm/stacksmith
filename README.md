@@ -9,9 +9,16 @@
 [![cosign at deploy](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/cosign-at-deploy.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/cosign-at-deploy.yml)
 [![security](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/codeql.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/codeql.yml)
 [![container scan](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/container-scan.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/container-scan.yml)
+[![Pages demo](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/deploy-demo-pages.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/deploy-demo-pages.yml)
 [![Release](https://img.shields.io/github/v/release/Abolfazlrwm/stacksmith?sort=semver)](https://github.com/Abolfazlrwm/stacksmith/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Conventional Commits](https://img.shields.io/badge/commits-conventional-fe5d0f)](https://github.com/Abolfazlrwm/stacksmith/blob/main/docs/adr/0032-enforce-conventional-commits.md)
+
+> 🌐 **Live demo:** <https://abolfazlrwm.github.io/stacksmith/> —
+> interactive product + code showcase, no backend required. The same
+> page is served in-app at `/demo/` on a running stack.
+
+<img src="docs/logo.svg" alt="docubot logo" width="80" align="right" hspace="12" vspace="8">
 
 ## What this is
 
@@ -119,6 +126,10 @@ adds the SLO/SLI layer:
 
 ## Quick start
 
+**No setup required to see the product** — the live showcase is at
+<https://abolfazlrwm.github.io/stacksmith/>. To run the full stack
+locally:
+
 ```bash
 git clone https://github.com/Abolfazlrwm/stacksmith.git
 cd stacksmith
@@ -129,6 +140,12 @@ bash scripts/stacksmith-health.sh  # one-command health check
 make demo                     # ingest the sample corpus + ask a question
 make backup                   # take a database backup
 ```
+
+Once the stack is up, open:
+
+- <http://localhost:8080/> — service root (version, JSON)
+- <http://localhost:8080/app/> — the chat UI (upload → ask → cite)
+- <http://localhost:8080/demo/> — the interactive product + code showcase
 
 For the full walkthrough (TLS, dashboards, blue-green, backup/restore),
 see [docs/getting-started.md](docs/getting-started.md).
@@ -174,7 +191,7 @@ firewall rules).
 See [docs/api/health-openapi.json](docs/api/health-openapi.json) for the
 OpenAPI 3.0 spec.
 
-## Architecture decisions (30 ADRs)
+## Architecture decisions (33 ADRs)
 
 ADR numbers are non-contiguous — gaps (0021/22, 0024, 0026/27, 0029)
 are drafts that were merged into adjacent ADRs before publication and
