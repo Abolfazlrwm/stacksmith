@@ -73,6 +73,24 @@ services:
       retries: 5
       start_period: 15s
 
+  tempo:
+    image: grafana/tempo:latest
+    command: ["-config.file=/etc/tempo.yml"]
+    ports:
+      - 
+      - "127.0.0.1:4318:4318"    # otlp http
+      - "127.0.0.1:3200:3200"  # tempo api
+    volumes:
+      - ./monitoring/tempo.yml:/etc/tempo.yml:ro
+      - tempo_data:/var/tempo
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3200/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
   grafana:
     image: grafana/grafana:latest
     env_file: .env
@@ -127,3 +145,4 @@ volumes:
   loki_data:
   promtail_data:
   alertmanager_data:
+  tempo_data:

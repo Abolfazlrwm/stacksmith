@@ -3,3 +3,9 @@ gunicorn==23.0.0
 psycopg[binary]==3.2.3
 redis==6.1.0
 celery==5.4.0
+opentelemetry-distro==0.66b2
+opentelemetry-exporter-otlp==1.45.2
+opentelemetry-instrumentation-django==0.66b2
+opentelemetry-instrumentation-psycopg==0.66b2
+opentelemetry-instrumentation-redis==0.66b2
+opentelemetry-instrumentation-celery==0.66b2
