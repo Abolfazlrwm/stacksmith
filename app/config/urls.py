@@ -49,4 +49,14 @@ urlpatterns = [
         template_name="chat.html",
         content_type="text/html; charset=utf-8",
     ), name="chat-ui"),
+
+    # Interactive product+code showcase. Serves a single self-contained
+    # HTML page (no build step, no backend calls) so a visitor can see
+    # the product end-to-end and the code behind each feature side by
+    # side. This is the GitHub-Pages deploy target too — the same file
+    # is published at https://abolfazlrwm.github.io/stacksmith/.
+    path("demo/", TemplateView.as_view(
+        template_name="demo.html",
+        content_type="text/html; charset=utf-8",
+    ), name="demo-ui"),
 ]

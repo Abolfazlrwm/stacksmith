@@ -1,0 +1,67 @@
+---
+name: deploy-demo-pages
+
+# Publish the interactive product+code showcase to GitHub Pages so anyone
+# (a reviewer, a hiring manager, an instructor) can see the product and
+# the code behind each feature without running docker.
+#
+# The showcase is a single self-contained HTML file (app/templates/demo.html)
+# with no backend calls. We copy it to a publish branch (gh-pages) as
+# index.html. GitHub Pages serves it at the repo's pages URL.
+#
+# Pages is the single place where external viewers land; the in-app
+# /demo route serves the same file from a running stack.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one Pages deploy at a time — a newer push supersedes an in-flight
+# one. (Unlike the scheduled workflows, this is fine to cancel: a half-
+# published gh-pages branch is just replaced atomically by the deploy
+# artifact, never seen by a visitor mid-flight.)
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build showcase site
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: stage site
+        run: |
+          mkdir -p _site
+          cp app/templates/demo.html _site/index.html
+          # Pages needs a Jekyll bypass so underscore-prefixed files
+          # are not skipped and our HTML is served as-is.
+          touch _site/.nojekyll
+          # A tiny CNAME-less config so Pages uses the repo URL.
+          ls -la _site
+
+      - name: upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

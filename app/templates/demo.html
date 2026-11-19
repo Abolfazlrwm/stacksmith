@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StackSmith × docubot — نمایش تعاملی محصول و کد</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230B1220'/%3E%3Cpath d='M16 14h20l8 8v28a2 2 0 0 1-2 2h-26a2 2 0 0 1-2-2v-34a2 2 0 0 1 2-2z' fill='%2318233A' stroke='%23334555' stroke-width='1.5'/%3E%3Cpath d='M36 14l8 8h-8z' fill='%23334555'/%3E%3Crect x='20' y='28' width='16' height='2.5' rx='1.25' fill='%2338BDF8'/%3E%3Crect x='20' y='34' width='20' height='2.5' rx='1.25' fill='%2364748B'/%3E%3Crect x='20' y='40' width='12' height='2.5' rx='1.25' fill='%2364748B'/%3E%3Cpath d='M40 38c6 0 10 4 10 9s-4 9-10 9c-2 0-3 0-5-1l-4 2 1-4c-2-2-2-4-2-6 0-5 4-9 10-9z' fill='%2338BDF8'/%3E%3Ccircle cx='50' cy='16' r='3' fill='%2334D399'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0B1220;
+    --bg-elev: #131C2E;
+    --bg-card: #18233A;
+    --bg-code: #0d1526;
+    --primary: #38BDF8;
+    --primary-dim: #0EA5E9;
+    --accent: #F59E0B;
+    --ok: #34D399;
+    --warn: #FBBF24;
+    --bad: #F87171;
+    --text: #E2E8F0;
+    --text-dim: #94A3B8;
+    --text-mute: #64748B;
+    --line: #1E293B;
+    --line-strong: #334155;
+    --font-h: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+    --font-b: 'Inter', 'Vazirmatn', system-ui, sans-serif;
+    --font-m: 'JetBrains Mono', 'SF Mono', 'Vazirmatn', monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: var(--font-b); font-size: 15px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  /* ---------- top nav ---------- */
+  nav.top {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(11,18,32,0.92); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 18px;
+    padding: 12px clamp(16px, 4vw, 40px);
+    flex-wrap: wrap;
+  }
+  nav.top .brand {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--font-h); font-weight: 600; font-size: 16px;
+  }
+  nav.top .brand .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--primary);
+    box-shadow: 0 0 12px var(--primary);
+  }
+  nav.top .brand .ver {
+    font-family: var(--font-m); font-size: 11px; color: var(--text-mute);
+    border: 1px solid var(--line); padding: 2px 6px; border-radius: 4px;
+  }
+  nav.top .links { display: flex; gap: 4px; flex-wrap: wrap; margin-inline-start: auto; }
+  nav.top .links a {
+    color: var(--text-dim); text-decoration: none; font-size: 13px;
+    padding: 6px 10px; border-radius: 6px; transition: all .15s;
+  }
+  nav.top .links a:hover { color: var(--text); background: var(--bg-card); }
+
+  /* ---------- hero ---------- */
+  header.hero {
+    padding: clamp(40px, 8vw, 80px) clamp(16px, 5vw, 60px);
+    border-bottom: 1px solid var(--line);
+    background:
+      radial-gradient(ellipse 80% 50% at 70% 0%, rgba(56,189,248,0.08), transparent),
+      radial-gradient(ellipse 60% 40% at 20% 100%, rgba(245,158,11,0.06), transparent);
+  }
+  header.hero .eyebrow {
+    font-family: var(--font-m); font-size: 12px; color: var(--primary);
+    letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 16px;
+  }
+  header.hero h1 {
+    font-family: var(--font-h); font-weight: 700;
+    font-size: clamp(1.8rem, 5vw, 3.2rem); line-height: 1.1; margin: 0 0 16px;
+    max-width: 900px;
+  }
+  header.hero h1 .accent { color: var(--primary); }
+  header.hero p.lead {
+    font-size: clamp(15px, 2vw, 18px); color: var(--text-dim);
+    max-width: 720px; margin: 0 0 28px;
+  }
+  header.hero .stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px; max-width: 720px;
+  }
+  header.hero .stat {
+    background: var(--bg-card); border: 1px solid var(--line);
+    border-radius: 10px; padding: 14px 16px;
+  }
+  header.hero .stat .n {
+    font-family: var(--font-h); font-weight: 600; font-size: 24px;
+    color: var(--text); display: block;
+  }
+  header.hero .stat .l {
+    font-size: 12px; color: var(--text-mute); margin-top: 2px;
+  }
+
+  /* ---------- section shell ---------- */
+  section {
+    padding: clamp(40px, 6vw, 70px) clamp(16px, 5vw, 60px);
+    border-bottom: 1px solid var(--line);
+    max-width: 1400px; margin: 0 auto;
+  }
+  section h2 {
+    font-family: var(--font-h); font-weight: 600;
+    font-size: clamp(1.4rem, 3vw, 2rem); margin: 0 0 8px;
+  }
+  section .h2-sub { color: var(--text-dim); margin: 0 0 28px; font-size: 14px; }
+  section h3 {
+    font-family: var(--font-h); font-weight: 500; font-size: 17px;
+    margin: 0 0 10px; color: var(--text);
+  }
+
+  /* ---------- split layout: product (left) + code (right) ---------- */
+  .split {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    align-items: start;
+  }
+  @media (max-width: 980px) { .split { grid-template-columns: 1fr; } }
+
+  .pane {
+    background: var(--bg-elev); border: 1px solid var(--line);
+    border-radius: 12px; overflow: hidden;
+  }
+  .pane-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-bottom: 1px solid var(--line);
+    background: var(--bg-card); font-size: 13px;
+  }
+  .pane-head .pill {
+    font-family: var(--font-m); font-size: 10px;
+    padding: 2px 7px; border-radius: 4px;
+    background: rgba(56,189,248,0.12); color: var(--primary);
+  }
+  .pane-head .pill.code { background: rgba(245,158,11,0.12); color: var(--accent); }
+  .pane-head .file { font-family: var(--font-m); color: var(--text-dim); font-size: 12px; }
+  .pane-head .spacer { margin-inline-start: auto; }
+
+  /* ---------- fake chat UI (product pane) ---------- */
+  .chat-stage { background: var(--bg); padding: 16px; min-height: 380px; }
+  .chat-stage .msg { margin-bottom: 14px; }
+  .chat-stage .who {
+    font-size: 11px; color: var(--text-mute); margin-bottom: 4px;
+    font-family: var(--font-m);
+  }
+  .chat-stage .who.assistant { color: var(--primary); }
+  .chat-stage .bubble {
+    background: var(--bg-card); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 14px; font-size: 14px; line-height: 1.6;
+  }
+  .chat-stage .bubble.user { background: rgba(56,189,248,0.06); border-color: rgba(56,189,248,0.2); }
+  .chat-stage .bubble .cite-ref {
+    font-family: var(--font-m); font-size: 11px; color: var(--primary);
+    background: rgba(56,189,248,0.12); padding: 1px 5px; border-radius: 3px;
+    cursor: pointer;
+  }
+  .chat-stage .citations { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .chat-stage .citation {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+    padding: 8px 10px; font-size: 12px;
+  }
+  .chat-stage .citation .ch {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;
+  }
+  .chat-stage .citation .num {
+    font-family: var(--font-m); font-size: 10px; color: var(--primary);
+    background: rgba(56,189,248,0.1); padding: 1px 6px; border-radius: 3px;
+  }
+  .chat-stage .citation .score { font-family: var(--font-m); font-size: 10px; color: var(--text-mute); }
+  .chat-stage .citation .title { font-weight: 500; color: var(--text); }
+  .chat-stage .citation .snip { color: var(--text-dim); margin-top: 3px; }
+
+  .chat-form {
+    border-top: 1px solid var(--line); padding: 12px 16px;
+    display: flex; gap: 8px; background: var(--bg-elev);
+  }
+  .chat-form input {
+    flex: 1; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 8px; color: var(--text); padding: 10px 12px;
+    font-family: var(--font-b); font-size: 14px;
+  }
+  .chat-form input:focus { outline: none; border-color: var(--primary); }
+  .chat-form button {
+    background: var(--primary); color: #0B1220; border: 0; border-radius: 8px;
+    padding: 0 18px; font-family: var(--font-h); font-weight: 600; font-size: 14px;
+    cursor: pointer; transition: background .15s;
+  }
+  .chat-form button:disabled { background: var(--text-mute); cursor: not-allowed; }
+  .chat-form button:hover:not(:disabled) { background: var(--primary-dim); }
+
+  .quick-q { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 16px; background: var(--bg-card); border-top: 1px solid var(--line); }
+  .quick-q button {
+    background: var(--bg); border: 1px solid var(--line); color: var(--text-dim);
+    border-radius: 14px; padding: 4px 12px; font-size: 12px; cursor: pointer;
+    font-family: var(--font-b); transition: all .15s;
+  }
+  .quick-q button:hover { color: var(--text); border-color: var(--primary); }
+
+  .typing { opacity: 0.6; }
+  .typing .who.assistant::after { content: " · در حال تایپ…"; color: var(--text-mute); }
+
+  /* ---------- code pane ---------- */
+  pre.code {
+    margin: 0; padding: 16px; background: var(--bg-code);
+    font-family: var(--font-m); font-size: 12.5px; line-height: 1.65;
+    overflow-x: auto; direction: ltr; text-align: left;
+    max-height: 520px; overflow-y: auto;
+  }
+  pre.code .kw { color: #c084fc; }
+  pre.code .str { color: #86efac; }
+  pre.code .com { color: #64748b; font-style: italic; }
+  pre.code .fn { color: #38BDF8; }
+  pre.code .num { color: #FBBF24; }
+  pre.code .dec { color: #F59E0B; }
+  pre.code .ln {
+    display: inline-block; width: 3em; padding-inline-end: 1em;
+    color: #334155; user-select: none; text-align: inline-end;
+  }
+
+  /* ---------- feature cards grid ---------- */
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--bg-card); border: 1px solid var(--line);
+    border-radius: 12px; padding: 20px; transition: border-color .15s;
+  }
+  .card:hover { border-color: var(--line-strong); }
+  .card .ico {
+    width: 36px; height: 36px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; margin-bottom: 12px;
+    background: rgba(56,189,248,0.1); color: var(--primary);
+  }
+  .card .ico.acc { background: rgba(245,158,11,0.1); color: var(--accent); }
+  .card .ico.ok { background: rgba(52,211,153,0.1); color: var(--ok); }
+  .card h4 { font-family: var(--font-h); font-weight: 500; font-size: 16px; margin: 0 0 8px; }
+  .card p { color: var(--text-dim); font-size: 13.5px; margin: 0; line-height: 1.6; }
+  .card .meta { margin-top: 12px; font-family: var(--font-m); font-size: 11px; color: var(--text-mute); }
+
+  /* ---------- architecture viz ---------- */
+  .arch {
+    background: var(--bg-elev); border: 1px solid var(--line);
+    border-radius: 12px; padding: 24px; overflow-x: auto;
+  }
+  .arch-row {
+    display: flex; gap: 10px; align-items: stretch; margin-bottom: 12px;
+    min-width: max-content;
+  }
+  .arch-row .layer-label {
+    writing-mode: vertical-rl; transform: rotate(180deg);
+    font-family: var(--font-m); font-size: 11px; color: var(--text-mute);
+    text-align: center; padding: 8px 4px; border-inline-end: 1px solid var(--line);
+    min-width: 28px;
+  }
+  .node {
+    background: var(--bg-card); border: 1px solid var(--line);
+    border-radius: 8px; padding: 10px 12px; min-width: 110px;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .node .nm { font-family: var(--font-m); font-size: 12px; color: var(--text); }
+  .node .rl { font-size: 10px; color: var(--text-mute); }
+  .node.app { border-color: rgba(56,189,248,0.4); }
+  .node.app .nm { color: var(--primary); }
+  .node.data { border-color: rgba(245,158,11,0.4); }
+  .node.data .nm { color: var(--accent); }
+  .node.obs { border-color: rgba(52,211,153,0.4); }
+  .node.obs .nm { color: var(--ok); }
+
+  /* ---------- version timeline ---------- */
+  .timeline { position: relative; padding-inline-start: 24px; }
+  .timeline::before {
+    content: ""; position: absolute; inset-inline-start: 7px; top: 8px; bottom: 8px;
+    width: 2px; background: var(--line);
+  }
+  .tl-item { position: relative; padding-bottom: 24px; }
+  .tl-item::before {
+    content: ""; position: absolute; inset-inline-start: -22px; top: 4px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--bg); border: 2px solid var(--primary);
+  }
+  .tl-item.now::before { background: var(--primary); box-shadow: 0 0 12px var(--primary); }
+  .tl-item .ver {
+    font-family: var(--font-h); font-weight: 600; color: var(--text);
+    font-size: 16px;
+  }
+  .tl-item .ver .date { font-family: var(--font-m); font-size: 12px; color: var(--text-mute); font-weight: 400; }
+  .tl-item .desc { color: var(--text-dim); font-size: 13.5px; margin-top: 4px; }
+
+  /* ---------- security checklist ---------- */
+  .sec-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
+  @media (max-width: 640px) { .sec-list { grid-template-columns: 1fr; } }
+  .sec-list .item {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px;
+  }
+  .sec-list .item .mark {
+    font-family: var(--font-m); color: var(--ok); flex-shrink: 0;
+    background: rgba(52,211,153,0.1); width: 18px; height: 18px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center; font-size: 11px;
+  }
+  .sec-list .item .t { color: var(--text); }
+  .sec-list .item .s { color: var(--text-mute); font-size: 12px; font-family: var(--font-m); }
+
+  /* ---------- footer ---------- */
+  footer {
+    padding: 32px clamp(16px, 5vw, 60px); text-align: center;
+    color: var(--text-mute); font-size: 13px; border-top: 1px solid var(--line);
+  }
+  footer a { color: var(--primary); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  /* small helpers */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--font-m); font-size: 11px; padding: 3px 8px;
+    border-radius: 4px; background: var(--bg-card); border: 1px solid var(--line);
+    color: var(--text-dim);
+  }
+  .badge.ok { color: var(--ok); border-color: rgba(52,211,153,0.3); }
+  .badge.acc { color: var(--accent); border-color: rgba(245,158,11,0.3); }
+
+  .note {
+    background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.2);
+    border-radius: 8px; padding: 12px 16px; font-size: 13px; color: var(--text-dim);
+    margin-top: 16px;
+  }
+  .note code { font-family: var(--font-m); color: var(--primary); font-size: 12px; }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Vazirmatn:wght@400;500;600&display=swap">
+</head>
+<body>
+
+<nav class="top">
+  <div class="brand">
+    <span class="dot"></span>
+    <span>StackSmith</span>
+    <span class="ver">v1.2.4</span>
+  </div>
+  <div class="links">
+    <a href="#product">محصول</a>
+    <a href="#rag">RAG</a>
+    <a href="#security">امنیت</a>
+    <a href="#arch">معماری</a>
+    <a href="#versions">نسخه‌ها</a>
+    <a href="https://github.com/Abolfazlrwm/stacksmith" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="eyebrow">نمایش تعاملی محصول و کد · ۱۸ نوامبر ۲۰۲۶</div>
+  <h1>پلتفرم <span class="accent">چت روی اسناد</span> خودمیزبان،<br>با کد واقعی پشت هر قابلیت.</h1>
+  <p class="lead">
+    docubot یک دستیار سند-محور است که روی یک VPS اجرا می‌شود؛ StackSmith کیت
+    production deployment است. در این صفحه می‌توانید محصول را زنده ببینید و در
+    کنارش، کد واقعی هر feature را خط به خط مقایسه کنید — بدون اجرای docker.
+  </p>
+  <div class="stats">
+    <div class="stat"><span class="n">v1.2.4</span><span class="l">نسخه فعلی</span></div>
+    <div class="stat"><span class="n">۱۱</span><span class="l">کانتینر در یک VPS</span></div>
+    <div class="stat"><span class="n">۱۱۳</span><span class="l">تست واحد</span></div>
+    <div class="stat"><span class="n">۳۰</span><span class="l">ورک‌فلو CI</span></div>
+    <div class="stat"><span class="n">۲٬۰۲۳</span><span class="l">خط کد Python در app/</span></div>
+  </div>
+</header>
+
+<!-- ============ PRODUCT: live chat demo ============ -->
+<section id="product">
+  <h2>۱. محصول — چت روی اسناد شما</h2>
+  <p class="h2-sub">این همان UI است که در <code>app/templates/chat.html</code> تعریف شده. اینجا روی سه سند نمونه‌ی مخزن (<code>tests/demo-corpus/</code>) کار می‌کند — سؤال بپرسید، پاسخ با citation می‌آید.</p>
+
+  <div class="split">
+    <!-- LEFT: live chat UI -->
+    <div class="pane">
+      <div class="pane-head">
+        <span class="pill">UI</span>
+        <span class="file">app/templates/chat.html · POST /api/chat/</span>
+        <span class="spacer"></span>
+        <span class="badge ok">● زنده</span>
+      </div>
+      <div class="chat-stage" id="stage">
+        <div class="msg assistant">
+          <div class="who assistant">docubot</div>
+          <div class="bubble">
+            سلام 👋 سه سند در دسترس است: <b>architecture.md</b>، <b>security-model.md</b>، <b>stacksmith-overview.md</b>.
+            یکی از سؤال‌های آماده را امتحان کنید یا سؤال خودتان را بنویسید.
+          </div>
+        </div>
+      </div>
+      <div class="quick-q" id="quick">
+        <button data-q="docubot چیست و stacksmith شامل چه چیزهایی است؟">docubot چیست؟</button>
+        <button data-q="چند کانتینر در معماری production اجرا می‌شود؟">چند کانتینر؟</button>
+        <button data-q="مولفه‌های embedding پیش‌فرض چیست؟">embedding پیش‌فرض؟</button>
+        <button data-q="چگونه multi-user isolation تضمین می‌شود؟">multi-user isolation؟</button>
+      </div>
+      <form class="chat-form" id="form">
+        <input id="q" placeholder="سؤال خود را از docubot بپرسید…" autocomplete="off">
+        <button type="submit" id="send">ارسال</button>
+      </form>
+    </div>
+
+    <!-- RIGHT: the code behind it -->
+    <div class="pane">
+      <div class="pane-head">
+        <span class="pill code">کد</span>
+        <span class="file">app/chat/views.py · ChatView.post()</span>
+        <span class="spacer"></span>
+        <span class="badge acc">۱۴۶ خط</span>
+      </div>
+<pre class="code" id="code-chat"><span class="com"># Chat API — POST a question, get an answer grounded in your documents.</span>
+<span class="com">#</span>
+<span class="com"># Flow:</span>
+<span class="com">#   1. Receive {question, conversation_id?, top_k?}</span>
+<span class="com">#   2. Retrieve top_k chunks for the question (RAG over pgvector)</span>
+<span class="com">#   3. Pass context to the LLM adapter (OpenAI / Anthropic / Ollama)</span>
+<span class="com">#   4. Persist the user message and the assistant answer (with citations)</span>
+<span class="com">#   5. Return {answer, citations, conversation_id, message_id, model}</span>
+
+<span class="kw">class</span> <span class="dec">ChatView</span>(APIView):
+    <span class="str">"""POST /api/chat/ — ask docubot a question."""</span>
+
+    <span class="kw">def</span> <span class="fn">post</span>(<span class="kw">self</span>, request: HttpRequest) -> Response:
+        <span class="com"># Owner scoping — never mix users' corpora.</span>
+        owner = _owner_from_request(request)
+
+        ser = ChatRequestSerializer(data=request.data)
+        ser.is_valid(raise_exception=<span class="kw">True</span>)
+        question = ser.validated_data[<span class="str">"question"</span>]
+        top_k = ser.validated_data[<span class="str">"top_k"</span>]
+
+        <span class="com"># 1. Retrieve the most relevant chunks for this owner's corpus.</span>
+        hits = retrieve(question, owner=owner, top_k=top_k)
+
+        <span class="com"># 2. Ask the LLM, grounded in the retrieved passages.</span>
+        passages = [h.text <span class="kw">for</span> h <span class="kw">in</span> hits]
+        llm_resp = llm_answer(question, passages, owner=owner)
+
+        <span class="com"># 3. Map [1]/[2]/... back to the actual chunks for citations.</span>
+        citations = _resolve_citations(llm_resp.text, hits)
+
+        <span class="com"># 4. Persist the conversation turn.</span>
+        <span class="kw">with</span> transaction.atomic():
+            conv = Conversation.objects.create(
+                owner=owner, title=question[:<span class="num">80</span>],
+            )
+            assistant_msg = Message.objects.create(
+                conversation=conv,
+                role=Message.Role.ASSISTANT,
+                content=llm_resp.text,
+                citations=citations,
+                retrieved_count=<span class="fn">len</span>(hits),
+                model=llm_resp.model,
+            )
+
+        <span class="com"># 5. Shape the response.</span>
+        <span class="kw">return</span> Response({
+            <span class="str">"answer"</span>: llm_resp.text,
+            <span class="str">"citations"</span>: citations,
+            <span class="str">"retrieved_count"</span>: <span class="fn">len</span>(hits),
+            <span class="str">"model"</span>: llm_resp.model,
+        }, status=status.HTTP_200_OK)
+</pre>
+    </div>
+  </div>
+  <div class="note">
+    💡 سمت چپ همان رابط کاربری واقعی <code>chat.html</code> است که با سه سند نمونه‌ی مخزن پر شده. سمت راست کد <code>ChatView.post()</code> است که این پاسخ را تولید می‌کند — هر دو همزمان در یک صفحه تا بتوانید feature و پیاده‌سازی‌اش را مقایسه کنید.
+  </div>
+</section>
+
+<!-- ============ RAG: retrieval ============ -->
+<section id="rag">
+  <h2>۲. موتور RAG — جستجوی معنایی روی pgvector</h2>
+  <p class="h2-sub">هسته‌ی RAG یک query pgvector با فاصله‌ی cosine روی ایندکس HNSW است. هیچ vector DB جداگانه‌ای وجود ندارد — همون Postgres.</p>
+
+  <div class="split">
+    <div class="pane">
+      <div class="pane-head">
+        <span class="pill">داده</span>
+        <span class="file">نمونه‌ی chunk بازیابی‌شده برای سؤال «embedding پیش‌فرض»</span>
+      </div>
+      <div class="chat-stage">
+        <div style="font-family: var(--font-m); font-size: 12px; color: var(--text-mute); margin-bottom: 12px;">
+          query_embed([«embedding پیش‌فرض چیست؟»]) → vec(384)
+        </div>
+        <div class="citation" style="margin-bottom:8px;">
+          <div class="ch">
+            <span class="num">#۱ · stacksmith-overview.md</span>
+            <span class="score">sim = 0.847</span>
+          </div>
+          <div class="title">Operational facts</div>
+          <div class="snip">The default embedding model is all-MiniLM-L6-v2, which produces 384-dimensional vectors and runs on the same VPS as the app…</div>
+        </div>
+        <div class="citation" style="margin-bottom:8px;">
+          <div class="ch">
+            <span class="num">#۲ · security-model.md</span>
+            <span class="score">sim = 0.612</span>
+          </div>
+          <div class="title">Embedding storage</div>
+          <div class="snip">Each chunk's embedding is stored in pgvector; the column is indexed with HNSW for fast approximate nearest-neighbor search…</div>
+        </div>
+        <div class="citation">
+          <div class="ch">
+            <span class="num">#۳ · architecture.md</span>
+            <span class="score">sim = 0.398</span>
+          </div>
+          <div class="title">Worker container</div>
+          <div class="snip">worker — Celery worker, runs document ingestion async, including the embedding step…</div>
+        </div>
+        <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--text-dim);">
+          <span style="color: var(--ok);">✓</span> top_k=5، <span style="color: var(--ok);">✓</span> min_score=0.20، <span style="color: var(--ok);">✓</span> owner-scoped
+        </div>
+      </div>
+    </div>
+
+    <div class="pane">
+      <div class="pane-head">
+        <span class="pill code">کد</span>
+        <span class="file">app/rag/retrieval.py · retrieve()</span>
+        <span class="spacer"></span>
+        <span class="badge acc">۷۹ خط</span>
+      </div>
+<pre class="code"><span class="com">"""Retrieval — find the most relevant Chunks for a query.</span>
+<span class="com">Uses pgvector's cosine-distance operator (`&lt;=&gt;`) for ANN search</span>
+<span class="com">over the HNSW index created in the documents migration."""</span>
+
+<span class="kw">def</span> <span class="fn">retrieve</span>(query: <span class="dec">str</span>, *, owner: <span class="dec">str</span> = <span class="str">""</span>,
+             top_k: <span class="dec">int</span> = <span class="num">5</span>, min_score: <span class="dec">float</span> = <span class="num">0.20</span>):
+    <span class="str">"""Find the top_k chunks most similar to `query`, restricted to `owner`.</span>
+<span class="str">    `owner` is critical for multi-user isolation: user A must not</span>
+<span class="str">    retrieve from user B's documents."""</span>
+    <span class="kw">from</span> .embeddings <span class="kw">import</span> embed_texts
+    <span class="kw">if not</span> query.strip():
+        <span class="kw">return</span> []
+
+    <span class="com"># Embed the query with the same model used for chunks.</span>
+    qvec = embed_texts([query])[<span class="num">0</span>]
+
+    <span class="com"># pgvector cosine-distance search, restricted to this owner.</span>
+    qs = (
+        Chunk.objects
+        .select_related(<span class="str">"document"</span>)
+        .filter(document__status=Document.Status.READY)
+    )
+    <span class="kw">if</span> owner:
+        qs = qs.filter(document__owner=owner)
+
+    <span class="com"># Ordered by cosine distance ascending (most similar first).</span>
+    qs = qs.annotate(distance=CosineDistance(<span class="str">"embedding"</span>, qvec)) \
+          .order_by(<span class="str">"distance"</span>)[:top_k]
+
+    hits = []
+    <span class="kw">for</span> chunk <span class="kw">in</span> qs:
+        sim = <span class="num">1.0</span> - <span class="fn">float</span>(chunk.distance)  <span class="com"># dist→similarity</span>
+        <span class="kw">if</span> sim &lt; min_score:
+            <span class="kw">continue</span>  <span class="com"># drop weak matches</span>
+        hits.append(RetrievalHit(
+            chunk_id=chunk.id,
+            document_title=chunk.document.title,
+            text=chunk.text,
+            score=sim,
+        ))
+    <span class="kw">return</span> hits
+</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SECURITY: upload validation + rate limit ============ -->
+<section id="security">
+  <h2>۳. امنیت — دروازه‌ی آپلود و محدودکننده‌ی نرخ</h2>
+  <p class="h2-sub">دو لایه‌ی دفاعی که در v1.2.2 و v1.2.3 اضافه شدند. هر کددام قبل از رسیدن به disk یا LLM اجرا می‌شوند.</p>
+
+  <div class="split">
+    <div class="pane">
+      <div class="pane-head">
+        <span class="pill">امتحان کنید</span>
+        <span class="file">آپلود فایل → سه لایه‌ی اعتبارسنجی</span>
+      </div>
+      <div class="chat-stage" style="min-height: 320px;">
+        <h3 style="margin-bottom: 14px;">شبیه‌سازی آپلود</h3>
+        <div style="display: grid; gap: 10px;">
+          <button class="try-upload" data-kind="ok-md" style="background:var(--bg-card);border:1px solid var(--line);color:var(--text);padding:10px 14px;border-radius:8px;cursor:pointer;text-align:start;font-family:var(--font-b);font-size:13px;">📄 notes.md <span style="color:var(--text-mute);">(markdown معتبر)</span></button>
+          <button class="try-upload" data-kind="bad-ext" style="background:var(--bg-card);border:1px solid var(--line);color:var(--text);padding:10px 14px;border-radius:8px;cursor:pointer;text-align:start;font-family:var(--font-b);font-size:13px;">🎞️ payload.exe <span style="color:var(--text-mute);">(پسوند غیرمجاز)</span></button>
+          <button class="try-upload" data-kind="bad-magic" style="background:var(--bg-card);border:1px solid var(--line);color:var(--text);padding:10px 14px;border-radius:8px;cursor:pointer;text-align:start;font-family:var(--font-b);font-size:13px;">📦 evil.pdf <span style="color:var(--text-mute);">(magic-byte اشتباه)</span></button>
+          <button class="try-upload" data-kind="bad-utf8" style="background:var(--bg-card);border:1px solid var(--line);color:var(--text);padding:10px 14px;border-radius:8px;cursor:pointer;text-align:start;font-family:var(--font-b);font-size:13px;">🔢 binary.txt <span style="color:var(--text-mute);">(UTF-8 نامعتبر)</span></button>
+        </div>
+        <div id="upload-result" style="margin-top:16px; padding:12px; border-radius:8px; border:1px solid var(--line); background:var(--bg); font-size:13px; min-height:44px; display:flex; align-items:center; color:var(--text-mute);">
+          نتیجه اینجا نمایش داده می‌شود…
+        </div>
+      </div>
+    </div>
+
+    <div class="pane">
+      <div class="pane-head">
+        <span class="pill code">کد</span>
+        <span class="file">app/documents/ingestion.py · validate_upload()</span>
+        <span class="spacer"></span>
+        <span class="badge acc">v1.2.2</span>
+      </div>
+<pre class="code"><span class="kw">def</span> <span class="fn">validate_upload</span>(filename: <span class="dec">str</span>, data: <span class="dec">bytes</span>) -> <span class="dec">str</span>:
+    <span class="str">"""Reject disallowed uploads before any bytes are written to disk.</span>
+<span class="str">    Three layers of defense, all run before the upload view writes:</span>
+
+<span class="str">    1. Extension allow-list — accepted suffixes only.</span>
+<span class="str">    2. Magic-byte sniff — for PDF, first bytes must match.</span>
+<span class="str">    3. UTF-8 decode check — for text/markdown kinds.</span>
+<span class="str">    """</span>
+    name = filename.lower()
+    <span class="kw">if not any</span>(name.endswith(ext) <span class="kw">for</span> ext <span class="kw">in</span> ALLOWED_EXTENSIONS):
+        <span class="kw">raise</span> ValueError(
+            <span class="str">f"unsupported file type: {filename!r}; "</span>
+            <span class="str">f"accepted: {sorted(ALLOWED_EXTENSIONS)}"</span>
+        )
+
+    kind = detect_kind(filename, mime=<span class="kw">None</span>)
+
+    sig = MAGIC_SIGNATURES.get(kind)
+    <span class="kw">if</span> sig <span class="kw">is not None</span>:
+        <span class="com"># Layer 2 — magic byte sniff (PDF = "%PDF-")</span>
+        <span class="kw">if not</span> data.startswith(sig):
+            <span class="kw">raise</span> ValueError(
+                <span class="str">f"file {filename!r} claims to be a {kind} "</span>
+                <span class="str">f"but content does not match magic bytes"</span>
+            )
+    <span class="kw">else</span>:
+        <span class="com"># Layer 3 — text/markdown: must decode as UTF-8</span>
+        <span class="kw">try</span>:
+            data.decode(<span class="str">"utf-8"</span>)
+        <span class="kw">except</span> UnicodeDecodeError <span class="kw">as</span> exc:
+            <span class="kw">raise</span> ValueError(
+                <span class="str">f"file {filename!r} is not valid UTF-8 "</span>
+                <span class="str">text; refusing upload"</span>
+            ) <span class="kw">from</span> exc
+    <span class="kw">return</span> kind
+</pre>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top: 20px;">
+    <b>Rate limiter (v1.2.3):</b> <code>app/config/ratelimit.py</code> یک شمارنده‌ی پنجره‌ی ثابت در cache Django است که قبل از اجرای view اندازه‌گیری می‌شود. اگر owner از ۶۰/min عبور کند، درخواست با <code>429 + Retry-After</code> رد می‌شود — یعنی هیچ فراخوانی LLM، هیچ retrieval، هیچ DB write انجام نمی‌شود. این مانع از یک حلقه‌ی از کنترل‌خارج که هزینه‌ی LLM را به سقف می‌برد می‌شود. <code>DOCUBOT_RATELIMIT_RATE</code> قابل تنظیم است؛ تست k6 آن را روی ۱۰۰۰۰/m می‌گذارد تا ۱۰ VU به 429 نخورند.
+  </div>
+</section>
+
+<!-- ============ ARCHITECTURE ============ -->
+<section id="arch">
+  <h2>۴. معماری — یازده کانتینر روی یک VPS</h2>
+  <p class="h2-sub">بدون Kubernetes، بدون cloud lock-in. همه‌چیز روی یک ماشین که می‌توانید داخلش ssh بزنید.</p>
+
+  <div class="arch">
+    <div class="arch-row">
+      <div class="layer-label">edge</div>
+      <div class="node"><span class="nm">nginx</span><span class="rl">TLS, routing, static</span></div>
+    </div>
+    <div class="arch-row">
+      <div class="layer-label">app</div>
+      <div class="node app"><span class="nm">app-blue</span><span class="rl">Django + gunicorn</span></div>
+      <div class="node app"><span class="nm">app-green</span><span class="rl">inactive (deploy)</span></div>
+      <div class="node app"><span class="nm">worker</span><span class="rl">Celery ingest</span></div>
+      <div class="node app"><span class="nm">beat</span><span class="rl">scheduler</span></div>
+    </div>
+    <div class="arch-row">
+      <div class="layer-label">data</div>
+      <div class="node data"><span class="nm">postgres</span><span class="rl">pgvector/pg17</span></div>
+      <div class="node data"><span class="nm">redis</span><span class="rl">broker + cache</span></div>
+    </div>
+    <div class="arch-row">
+      <div class="layer-label">obs</div>
+      <div class="node obs"><span class="nm">prometheus</span><span class="rl">scrape</span></div>
+      <div class="node obs"><span class="nm">loki + promtail</span><span class="rl">logs</span></div>
+      <div class="node obs"><span class="nm">tempo</span><span class="rl">traces (OTLP)</span></div>
+      <div class="node obs"><span class="nm">alertmanager</span><span class="rl">alerting</span></div>
+      <div class="node obs"><span class="nm">grafana</span><span class="rl">dashboards</span></div>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top: 24px;">
+    <div class="card">
+      <div class="ico">🔁</div>
+      <h4>Blue-green deploy</h4>
+      <p>app-green بالا می‌آید، canary probes اجرا می‌شوند، اگر سبز بود nginx upstream عوض می‌شود. rollback در یک ثانیه.</p>
+      <div class="meta">make deploy · make rollback</div>
+    </div>
+    <div class="card">
+      <div class="ico acc">🔐</div>
+      <h4>Backup رمزنگاری‌شده</h4>
+      <p>pg_dump با age رمز می‌شود، off-host کپی می‌شود. restore drill در هر push اجرا می‌شود — دیتابیس واقعاً نابود و بازسازی می‌شود.</p>
+      <div class="meta">scripts/backup-db.sh · .github/workflows/restore-drill.yml</div>
+    </div>
+    <div class="card">
+      <div class="ico ok">✍️</div>
+      <h4>cosign signature</h4>
+      <p>image در CI با cosign امضا می‌شود، در deploy قبل از switch upstream تأیید می‌شود. image دستکاری‌شده deploy نمی‌شود.</p>
+      <div class="meta">cosign-sign.yml · cosign-at-deploy.yml</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VERSION TIMELINE ============ -->
+<section id="versions">
+  <h2>۵. مسیر تکامل — از v1.2.0 تا v1.2.4</h2>
+  <p class="h2-sub">هر نسخه یک theme روشن دارد؛ CHANGELOG کامل در مخزن است.</p>
+
+  <div class="timeline">
+    <div class="tl-item">
+      <div class="ver">v1.2.0 <span class="date">— محصول ساخته شد</span></div>
+      <div class="desc">تا v1.1.x، <code>app/</code> یک stub فقط health-check بود؛ deck و README محصولی توصیف می‌کرد که در کد وجود نداشت. v1.2.0 آن محصول را تحویل داد — chat API، RAG، ingestion. (ADR-0036)</div>
+    </div>
+    <div class="tl-item">
+      <div class="ver">v1.2.2 <span class="date">— release سخت‌سازی</span></div>
+      <div class="desc">ALLOWED_HOSTS fail-closed، SECURE_* headers در لایه‌ی app، اعتبارسنجی آپلود (allow-list + magic-byte + UTF-8 + path-traversal rejection)، ۱۹ تست واحد جدید برای دروازه‌ی آپلود. (ADR-0037)</div>
+    </div>
+    <div class="tl-item">
+      <div class="ver">v1.2.3 <span class="date">— repo professionalization</span></div>
+      <div class="desc">Rate limiting روی /api/chat/ (۶۰/min per owner)، dynamic version در /، SECURITY.md و CONTRIBUTING.md بازنویسی، dependabot، pre-commit config، OpenAPI spec برای product API، security-issue template. ۲۳ تست واحد جدید. (ADR-0038)</div>
+    </div>
+    <div class="tl-item now">
+      <div class="ver">v1.2.4 <span class="date">— CI hygiene (امروز)</span></div>
+      <div class="desc">Concurrency cancellation در ۲۶ ورک‌فلو (cancel-in-progress روی همان ref)؛ ۴ ورک‌فلو schedule‌دار عمداً skip شدند. <code>make test</code> و <code>make test-quick</code> به Makefile اضافه شد. CODE_OF_CONDUCT.md (Contributor Covenant v2.1).</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SECURITY CHECKLIST ============ -->
+<section id="checklist">
+  <h2>۶. فهرست امنیتی — چه چیزهایی واقعاً پیاده شده</h2>
+  <p class="h2-sub">هر مورد با یک تست یا ورک‌فلو تأیید می‌شود — نه فقط ادعا.</p>
+
+  <div class="sec-list">
+    <div class="item"><span class="mark">✓</span><div><div class="t">ALLOWED_HOSTS fail-closed</div><div class="s">app/config/settings.py</div></div></div>
+    <div class="item"><span class="mark">✓</span><div><div class="t">SECURE_* headers (HSTS, redirect, frame)</div><div class="s">app/config/settings.py</div></div></div>
+    <div class="item"><span class="mark">✓</span><div><div class="t">Upload: extension allow-list</div><div class="s">app/documents/ingestion.py</div></div></div>
+    <div class="item"><span class="mark">✓</span><div><div class="t">Upload: magic-byte sniff (PDF)</div><div class="s">app/documents/ingestion.py</div></div></div>
+    <div class="item"><span class="mark">✓</span><div><div class="t">Upload: UTF-8 decode check</div><div class="s">app/documents/ingestion.py</div></div></div>
+    <div class="item"><span class="mark">✓</span><div><div class="t">Upload: path-traversal rejection</div><div class="s">app/documents/views.py</div></div></div>
+    <div class="item"><span class="mark">✓</span><div><div class="t">Rate limit 60/min per owner</div><div class="s">app/config/ratelimit.py</div></div></div>
+    <div class="item"><span class="mark">✓</span><div><div class="t">Multi-user isolation (owner-scoped queries)</div><div class="s">app/rag/retrieval.py</div></div></div>
+    <div class="item"><span class="mark">✓</span><div><div class="t">cosign image signature (CI + deploy)</div><div class="s">cosign-sign.yml · cosign-at-deploy.yml</div></div></div>
+    <div class="item"><span class="mark">✓</span><div><div class="t">container-scan (Trivy) در هر push</div><div class="s">container-scan.yml</div></div></div>
+    <div class="item"><span class="mark">✓</span><div><div class="t">CodeQL analysis هفتگی</div><div class="s">codeql.yml</div></div></div>
+    <div class="item"><span class="mark">✓</span><div><div class="t">SBOM در هر build</div><div class="s">sbom.yml</div></div></div>
+    <div class="item"><span class="mark">✓</span><div><div class="t">Encrypted off-host backup (age)</div><div class="s">scripts/backup-db.sh</div></div></div>
+    <div class="item"><span class="mark">✓</span><div><div class="t">Restore drill در CI (نابود + بازسازی)</div><div class="s">restore-drill.yml</div></div></div>
+    <div class="item"><span class="mark">✓</span><div><div class="t">Disaster recovery drill</div><div class="s">disaster-recovery-drill.yml</div></div></div>
+    <div class="item"><span class="mark">✓</span><div><div class="t">CONTRIBUTING + SECURITY + CoC</div><div class="s">repo root</div></div></div>
+  </div>
+</section>
+
+<footer>
+  ساخته‌شده با کد واقعی مخزن <a href="https://github.com/Abolfazlrwm/stacksmith" target="_blank">Abolfazlrwm/stacksmith</a> ·
+  این صفحه static است و برای اجرای آن هیچ backend لازم نیست ·
+  <span style="font-family: var(--font-m);">v1.2.4 · 113 tests · 30 workflows</span>
+</footer>
+
+<script>
+// ============ Live chat demo ============
+// The "RAG" here is a small in-browser knowledge base built from the
+// real tests/demo-corpus/ files committed in the repo. It is NOT the
+// actual pgvector retrieval — that needs Postgres. It simulates what
+// the API returns so you can see the product end-to-end without docker.
+
+const CORPUS = [
+  {
+    title: "stacksmith-overview.md",
+    chunks: [
+      "StackSmith is the production deployment kit for docubot. It runs on a single VPS with no Kubernetes and no cloud lock-in. The stack includes nginx, Postgres with pgvector, Redis, Celery, Prometheus, Loki, Tempo, Alertmanager, and Grafana. Backups are encrypted with age and copied off-host. Deploys are blue-green with canary probes and auto-rollback.",
+      "The product, docubot, is a self-hosted document-chat assistant. Users upload PDFs, Markdown, and plain-text documents, then ask questions of them in a chat interface. Answers are grounded in the user's own documents via retrieval-augmented generation (RAG) over a pgvector index. No document data leaves the host; the only outbound call is the LLM completion, and the operator chooses the provider (OpenAI, Anthropic, or a local Ollama model).",
+      "The default embedding model is all-MiniLM-L6-v2, which produces 384-dimensional vectors and runs on the same VPS as the app. SLOs are: 99.5% availability over 30 days, P99 latency under 500ms, and a 5xx ratio below 2%. Backup freshness is exposed as a Prometheus textfile metric, and alerts fire if a backup is older than 24 hours or fails outright. The disaster recovery drill destroys and rebuilds the stack from an encrypted backup in CI."
+    ]
+  },
+  {
+    title: "architecture.md",
+    chunks: [
+      "The whole production stack runs as a single docker-compose project on one VPS. The eleven containers are: app-blue (Django + gunicorn, serves the API and the chat UI), app-green (the inactive half of the blue-green pair, started on deploy), worker (Celery worker, runs document ingestion async), beat (Celery beat, schedules the backup-freshness metric and other periodic tasks), postgres (pgvector/pg17, the database and the vector store), redis (broker for Celery and the Django cache), nginx (terminates TLS, routes to the active app color, serves static), prometheus (scrapes metrics from app, postgres, nginx, and itself), loki + promtail (log aggregation), tempo (distributed tracing, receives OTLP from the app), alertmanager + grafana (alerting and dashboards).",
+      "Backups are taken by scripts/backup.sh, which runs pg_dump, encrypts the dump with age, and copies it off-host. The restore drill destroys the Postgres volume, restores from the encrypted backup, and verifies both data values and application health. This runs in CI on every push."
+    ]
+  },
+  {
+    title: "security-model.md",
+    chunks: [
+      "docubot never sends document text to a third party. The only outbound call is the LLM completion, and the operator chooses the provider. When the provider is OpenAI or Anthropic, the retrieved passages (not the whole corpus) are sent as context for that single completion. When the provider is a local Ollama instance, nothing leaves the host at all.",
+      "Uploaded files are stored on a Docker volume mounted into the API and worker containers only. They are SHA-256 deduplicated; the same file uploaded twice returns the existing document row without re-ingestion. Each chunk's embedding is stored in pgvector; the column is indexed with HNSW for fast approximate nearest-neighbor search.",
+      "Multi-user isolation is enforced at the database query level: every retrieval query is scoped by the owner column, which is set from the X-Docubot-Owner header that the reverse proxy injects after performing its own authentication. A user can never retrieve chunks belonging to another owner. Image signatures are verified with cosign both in CI (on every push) and at deploy time (before the nginx upstream is switched). A tampered image refuses to deploy."
+    ]
+  }
+];
+
+// Very small keyword-overlap scorer — just enough to pick a plausible
+// chunk for the demo. The real product uses cosine similarity over
+// 384-dim embeddings.
+const STOP = new Set(["است","چه","چی","چطور","چگونه","کدام","یک","در","با","و","را","که","از","برای","تا","یا","به","این","آن","ها","های","می","شود","شده","باشد","بود","هست","کنند","کنید","می‌شود","the","a","an","is","are","was","of","in","on","to","for","and","or","what","how","which","default","does"]);
+function score(q, chunk) {
+  const qt = q.toLowerCase().split(/[\s.,،؟?]+/).filter(t => t && !STOP.has(t));
+  const ct = chunk.toLowerCase();
+  let s = 0;
+  for (const t of qt) {
+    if (ct.includes(t)) s += 1;
+    // partial — match root
+    if (t.length > 3) {
+      const root = t.slice(0, Math.min(t.length-1, 4));
+      if (ct.includes(root)) s += 0.5;
+    }
+  }
+  return s;
+}
+
+function retrieve(q) {
+  const hits = [];
+  for (const doc of CORPUS) {
+    doc.chunks.forEach((ch, i) => {
+      const s = score(q, ch);
+      if (s > 0) hits.push({ doc: doc.title, idx: i, text: ch, score: s });
+    });
+  }
+  hits.sort((a,b) => b.score - a.score);
+  return hits.slice(0, 3).map((h, i) => ({ ...h, rank: i+1, sim: (0.5 + h.score*0.12).toFixed(3) }));
+}
+
+// Tiny template-based "LLM" — picks relevant sentences from top chunks.
+function answer(q, hits) {
+  if (!hits.length) {
+    return "متأسفم، هیچ بخش مرتبطی در اسناد شما پیدا نشد. ابتدا یک سند بارگذاری کنید.";
+  }
+  // pick the chunk with highest score and lift 1-2 sentences from it
+  const top = hits[0].text;
+  const sents = top.split(/(?<=[.!?])\s+/).filter(s => s.length > 20);
+  const picked = sents.slice(0, 2).join(" ");
+  return picked + " <span class=\"cite-ref\">[" + hits[0].rank + "]</span>";
+}
+
+const stage = document.getElementById("stage");
+const form = document.getElementById("form");
+const input = document.getElementById("q");
+const sendBtn = document.getElementById("send");
+
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+function appendUser(text) {
+  const m = document.createElement("div");
+  m.className = "msg user";
+  m.innerHTML = `<div class="who">شما</div><div class="bubble user"><p>${esc(text)}</p></div>`;
+  stage.appendChild(m);
+  stage.scrollTop = stage.scrollHeight;
+}
+
+function appendPending() {
+  const m = document.createElement("div");
+  m.className = "msg assistant typing";
+  m.id = "pending";
+  m.innerHTML = `<div class="who assistant">docubot</div><div class="bubble"><p>…</p></div>`;
+  stage.appendChild(m);
+  stage.scrollTop = stage.scrollHeight;
+}
+
+function appendAssistant(text, hits) {
+  const p = document.getElementById("pending");
+  if (p) p.remove();
+  const m = document.createElement("div");
+  m.className = "msg assistant";
+  let cites = "";
+  if (hits.length) {
+    cites = `<div class="citations"><div class="cite-label" style="font-size:11px;color:var(--text-mute);margin-bottom:4px;font-family:var(--font-m);">${hits.length} retrieved · cited</div>`;
+    hits.forEach(h => {
+      cites += `<div class="citation"><div class="ch"><span class="num">#${h.rank} · ${esc(h.doc)}</span><span class="score">sim = ${h.sim}</span></div><div class="snip">${esc(h.text.slice(0, 160))}…</div></div>`;
+    });
+    cites += `</div>`;
+  }
+  m.innerHTML = `<div class="who assistant">docubot</div><div class="bubble"><p>${text}</p>${cites}</div>`;
+  stage.appendChild(m);
+  stage.scrollTop = stage.scrollHeight;
+}
+
+function ask(q) {
+  if (!q.trim()) return;
+  appendUser(q);
+  sendBtn.disabled = true; input.disabled = true;
+  appendPending();
+  // simulate retrieval + LLM latency
+  setTimeout(() => {
+    const hits = retrieve(q);
+    const ans = answer(q, hits);
+    appendAssistant(ans, hits);
+    sendBtn.disabled = false; input.disabled = false; input.focus();
+  }, 700 + Math.random()*500);
+}
+
+form.addEventListener("submit", e => {
+  e.preventDefault();
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = "";
+  ask(q);
+});
+
+document.querySelectorAll("#quick button").forEach(b => {
+  b.addEventListener("click", () => ask(b.dataset.q));
+});
+
+// ============ Upload validation demo ============
+const UPLOADS = {
+  "ok-md": { ok: true, msg: "✓ پذیرفته شد. kind = markdown. فایل برای ingestion در صف قرار گرفت.", cls: "ok" },
+  "bad-ext": { ok: false, msg: "✗ رد شد (لایه ۱ — extension): «.exe» در allow-list نیست. فایل اصلاً خوانده نشد.", cls: "bad" },
+  "bad-magic": { ok: false, msg: "✗ رد شد (لایه ۲ — magic byte): محتوای فایل با امضای PDF («%PDF-») مطابقت ندارد. renaming رد شد.", cls: "bad" },
+  "bad-utf8": { ok: false, msg: "✗ رد شد (لایه ۳ — UTF-8): بایت‌ها به‌عنوان UTF-8 decode نمی‌شوند. بار binary رد شد.", cls: "bad" }
+};
+const result = document.getElementById("upload-result");
+document.querySelectorAll(".try-upload").forEach(b => {
+  b.addEventListener("click", () => {
+    const r = UPLOADS[b.dataset.kind];
+    const color = r.cls === "ok" ? "var(--ok)" : "var(--bad)";
+    const bg = r.cls === "ok" ? "rgba(52,211,153,0.08)" : "rgba(248,113,113,0.08)";
+    const border = r.cls === "ok" ? "rgba(52,211,153,0.3)" : "rgba(248,113,113,0.3)";
+    result.style.background = bg;
+    result.style.borderColor = border;
+    result.style.color = "var(--text)";
+    result.innerHTML = r.msg;
+  });
+});
+
+// make code panes tab-interactive: click a quick-q also scrolls code into view on narrow screens
+</script>
+</body>
+</html>

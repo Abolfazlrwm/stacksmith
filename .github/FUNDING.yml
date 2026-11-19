@@ -1,0 +1,10 @@
+# Funding metadata for the StackSmith repository.
+#
+# This file powers the "Sponsor this project" button on the GitHub repo
+# page. StackSmith is MIT-licensed and free; sponsorship is welcome but
+# never required. Listed in priority order.
+github: [Abolfazlrwm]
+# Custom link for consulting / deployment help — shown alongside the
+# sponsor button. Commented out until the maintainer is ready to take
+# on external work; uncomment and edit to enable.
+# custom: ["https://abolfazlrwm.github.io/stacksmith/"]

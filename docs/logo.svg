@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="docubot logo">
+  <!-- A document spine on the left + a chat bubble tail on the right.
+       Same palette as the app: deep navy background, sky-blue primary,
+       amber accent. Designed to render legibly at 16x16 (favicon) and
+       at any larger size in README / docs / chat header. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0B1220"/>
+      <stop offset="100%" stop-color="#131C2E"/>
+    </linearGradient>
+    <linearGradient id="primary" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#0EA5E9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- rounded square background -->
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+
+  <!-- document: page with a folded corner -->
+  <path d="M16 14 h20 l8 8 v28 a2 2 0 0 1 -2 2 h-26 a2 2 0 0 1 -2 -2 v-34 a2 2 0 0 1 2 -2 z"
+        fill="#18233A" stroke="#334155" stroke-width="1.5"/>
+  <path d="M36 14 l8 8 h-8 z" fill="#334155"/>
+
+  <!-- text lines on the document -->
+  <rect x="20" y="28" width="16" height="2.5" rx="1.25" fill="#38BDF8" opacity="0.85"/>
+  <rect x="20" y="34" width="20" height="2.5" rx="1.25" fill="#64748B"/>
+  <rect x="20" y="40" width="12" height="2.5" rx="1.25" fill="#64748B"/>
+
+  <!-- chat bubble tail curling out of the page (the RAG answer) -->
+  <path d="M40 38 c6 0 10 4 10 9 c0 5 -4 9 -10 9 c-2 0 -3 0 -5 -1 l-4 2 l1 -4 c-2 -2 -2 -4 -2 -6 c0 -5 4 -9 10 -9 z"
+        fill="url(#primary)"/>
+  <circle cx="37" cy="47" r="1.5" fill="#0B1220"/>
+  <circle cx="42" cy="47" r="1.5" fill="#0B1220"/>
+  <circle cx="47" cy="47" r="1.5" fill="#0B1220"/>
+
+  <!-- the dot — the live "online" indicator -->
+  <circle cx="50" cy="16" r="3" fill="#34D399"/>
+</svg>
