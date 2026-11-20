@@ -93,11 +93,13 @@ jobs:
           # been provisioned yet (that failure mode used to crash the job:
           # "'needs-review' not found").
           gh label create "needs-review" \
+            -R "$GH_REPO" \
             --color "D93F0B" \
             --description "Dependabot major bump — manual review required before merge" \
             --force
-          gh pr edit "$PR_URL" --add-label "needs-review"
+          gh pr edit "$PR_URL" --add-label "needs-review" -R "$GH_REPO"
           gh pr comment "$PR_URL" \
+            -R "$GH_REPO" \
             --body "Major bump detected — left for manual review. Check breaking changes before merging."
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
