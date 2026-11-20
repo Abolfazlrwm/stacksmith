@@ -40,9 +40,15 @@ jobs:
   attest:
     name: verify build attestations on latest image
     runs-on: ubuntu-latest
-    # Loop worst case ~16 min (3 attempts x (2 x 130 s call + 60 s sleep));
-    # 10 gives headroom over the honest ~3 min failure path and cuts the
-    # previously-observed 25-min hangs short without masking real failures.
+    # Loop worst case ~8.7 min (2 attempts x (2 x (90 s call + 10 s SIGKILL
+    # grace) + 60 s sleep) = 520 s) + ~10 s setup = ~8.8 min < 10-min job
+    # timeout. This matters: in the wedged-read scenario every call burns
+    # its full per-call timeout, and if the loop outlived the job budget
+    # GitHub would kill the job mid-run with conclusion "cancelled" and
+    # never upload the diagnostic message. Sizing the loop INSIDE the job
+    # budget means even a fully wedged run ends as a clean red "failure"
+    # with the explanation, never a silent "cancelled". Healthy registries
+    # answer in ~1 s; the honest failure path finishes in ~3 min.
     timeout-minutes: 10
     continue-on-error: true
     steps:
@@ -68,10 +74,12 @@ jobs:
         run: |
           IMG="${{ steps.image.outputs.name }}"
           echo "Verifying build attestations on $IMG:latest"
-          # `timeout -k 10 N`: TERM at N s, SIGKILL at N+10 s - a hung call
-          # can never outlive N+10 seconds (see workflow header for why).
+          # `timeout -k 10 90`: TERM at 90 s, SIGKILL at 100 s - a hung call
+          # can never outlive 100 seconds (see workflow header for why).
+          # 2 attempts x 2 attestation types x 100 s max + sleeps keeps the
+          # whole loop inside the 10-min job budget even if every read wedges.
           verify_att() {
-            timeout -k 10 120 cosign verify-attestation \
+            timeout -k 10 90 cosign verify-attestation \
               --certificate-identity-regexp \
               "https://github.com/${{ github.repository }}/.github/.+" \
               --certificate-oidc-issuer \
@@ -79,7 +87,7 @@ jobs:
               --type "$1" \
               "$IMG:latest"
           }
-          for ATTEMPT in 1 2 3; do
+          for ATTEMPT in 1 2; do
             if verify_att "https://slsa.dev/provenance/v1"; then
               echo "SLSA provenance attestation verified (attempt $ATTEMPT)"
               exit 0
@@ -91,7 +99,7 @@ jobs:
             echo "attestation attempt $ATTEMPT failed - retrying in 60s"
             sleep 60
           done
-          echo "cosign verify-attestation failed after 3 attempts" >&2
+          echo "cosign verify-attestation failed after 2 attempts" >&2
           echo "If every attempt died at its timeout, see the workflow header:" >&2
           echo "the 2026-11-17 GHCR read-path incident is the known cause." >&2
           exit 1
