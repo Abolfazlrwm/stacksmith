@@ -41,9 +41,9 @@ jobs:
     name: verify build attestations on latest image
     runs-on: ubuntu-latest
     # Loop worst case ~16 min (3 attempts x (2 x 130 s call + 60 s sleep));
-    # 25 gives headroom (enforced ~30). A healthy registry answers in
-    # seconds - honest failures finish in ~3 min.
-    timeout-minutes: 25
+    # 10 gives headroom over the honest ~3 min failure path and cuts the
+    # previously-observed 25-min hangs short without masking real failures.
+    timeout-minutes: 10
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
