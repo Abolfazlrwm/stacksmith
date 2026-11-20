@@ -125,19 +125,27 @@ class DocumentListCreateView(ListCreateAPIView):
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         # Persist the raw bytes to the upload volume BEFORE creating the
-        # row, so the ingest task can read them. owner_dir_name() keeps the
-        # header-derived owner from ever acting as a traversal path component:
-        # the projection is whitelist-validated in storage.py before any
-        # filesystem call consumes it.
-        upload_root = Path(getattr(settings, "DOCUBOT_UPLOAD_ROOT", "/data/uploads"))
-        upload_dir = upload_root / owner_dir_name(owner)
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        path = upload_dir / checksum
+        # row, so the ingest task can read them. The candidate path is built
+        # from the header-derived owner (projected onto a safe charset by
+        # owner_dir_name()) and the content checksum, then normalized and
+        # proven to stay under the upload root: the startswith check on the
+        # normalized candidate is the canonical traversal guard, so on this
+        # branch the target is provably inside the upload volume.
+        upload_root = getattr(settings, "DOCUBOT_UPLOAD_ROOT", "/data/uploads")
+        root_norm = os.path.normpath(upload_root)
+        target = os.path.normpath(
+            os.path.join(root_norm, owner_dir_name(owner), checksum))
+        if not target.startswith(root_norm + os.sep):
+            logger.warning("upload %s for owner %s: target escapes upload root",
+                           log_safe(name), log_safe(owner))
+            return Response({"detail": "invalid upload target"},
+                            status=status.HTTP_400_BAD_REQUEST)
+        os.makedirs(os.path.dirname(target), exist_ok=True)
         # Write atomically: write to a tmp file, then rename.
-        tmp = path.with_suffix(".tmp")
+        tmp = target + ".tmp"
         with open(tmp, "wb") as fh:
             fh.write(data)
-        os.replace(tmp, path)
+        os.replace(tmp, target)
 
         doc = Document.objects.create(
             owner=owner,

@@ -43,14 +43,20 @@ def log_safe(value: str | None, limit: int = 200) -> str:
 
     User-supplied strings (request headers, filenames, exception text
     that embeds a filename) must not reach the logging sink verbatim:
-    CR/LF would let a caller forge log lines. Every character outside
-    the whitelist is replaced with "_" and the result must strictly
-    match the whitelist before it is returned; otherwise a fixed
-    "<redacted>" token is used, so the returned string is always safe.
+    CR/LF would let a caller forge log lines. CR and LF are escaped
+    first (the newline-escape step), then every remaining character
+    outside the whitelist is replaced with "_" and the result must
+    strictly match the whitelist before it is returned; otherwise a
+    fixed "<redacted>" token is used, so the returned string is always
+    safe.
     """
     if value is None:
         return "<none>"
-    projected = _UNSAFE_CHARS.sub("_", value)[:limit]
+    # Escape line breaks before any further projection: \r\n and \n are
+    # turned into a literal backslash-n so the text can neither split nor
+    # forge a log entry. (\r is handled by the character projection below.)
+    line_safe = value.replace("\r\n", "\\n").replace("\n", "\\n")
+    projected = _UNSAFE_CHARS.sub("_", line_safe)[:limit]
     if not _SAFE_LOG_TOKEN.fullmatch(projected):
         return "<redacted>"
     return projected

@@ -140,20 +140,26 @@ def _read_raw_bytes(doc: Document) -> bytes | None:
     from .storage import owner_dir_name
 
     upload_root = getattr(settings, "DOCUBOT_UPLOAD_ROOT", "/data/uploads")
+    root_norm = os.path.normpath(upload_root)
     # The owner in a DB row originally came from a request header; projecting
-    # it through owner_dir_name() keeps the derived path traversal-proof even
-    # for rows written before this hardening: the projection is whitelist-
-    # validated in storage.py before any filesystem call consumes it.
-    owner_dir = owner_dir_name(doc.owner)
-    # Same guarantee for the checksum component: a row with a corrupted
-    # checksum (or one written by a legacy ingest) is skipped rather than
-    # opening a path we cannot prove is checksum-keyed.
+    # it through owner_dir_name() keeps the derived path charset-safe even
+    # for rows written before this hardening. Same guarantee for the
+    # checksum component: a row with a corrupted checksum (or one written
+    # by a legacy ingest) is skipped rather than opening a path we cannot
+    # prove is checksum-keyed.
     if not re.fullmatch(r"[0-9a-f]{64}", doc.checksum or ""):
         log.error("refusing to read document %s: checksum %s is not a sha256 hex digest",
                   doc.pk, re.sub(r"[^A-Za-z0-9._-]", "_", str(doc.checksum or ""))[:64])
         return None
-    path = os.path.join(upload_root, owner_dir, doc.checksum)
-    if not os.path.exists(path):
+    # Canonical traversal guard: normalize the candidate path, then verify
+    # it stays under the normalized upload root on the taken branch, so the
+    # open() below can only ever address the upload volume.
+    target = os.path.normpath(
+        os.path.join(root_norm, owner_dir_name(doc.owner), doc.checksum))
+    if not target.startswith(root_norm + os.sep):
+        log.error("refusing to read document %s: target escapes upload root", doc.pk)
         return None
-    with open(path, "rb") as fh:
+    if not os.path.exists(target):
+        return None
+    with open(target, "rb") as fh:
         return fh.read()
