@@ -10,6 +10,10 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  # Creating/applying repository labels (gh label create, gh pr edit
+  # --add-label) goes through the issues API, which needs issues:write.
+  # Without it the major-bump labeling step fails with a 403 on PRs.
+  issues: write
 
 
 concurrency:
@@ -58,6 +62,15 @@ jobs:
       - name: Label major bumps for review
         if: steps.metadata.outputs.update-type == 'version-update:semver-major'
         run: |
+          # Ensure the label exists before applying it. `gh label create
+          # --force` creates it when missing and updates it when present,
+          # so this step can never fail on a repo where the label has not
+          # been provisioned yet (that failure mode used to crash the job:
+          # "'needs-review' not found").
+          gh label create "needs-review" \
+            --color "D93F0B" \
+            --description "Dependabot major bump — manual review required before merge" \
+            --force
           gh pr edit "$PR_URL" --add-label "needs-review"
           gh pr comment "$PR_URL" \
             --body "Major bump detected — left for manual review. Check breaking changes before merging."
