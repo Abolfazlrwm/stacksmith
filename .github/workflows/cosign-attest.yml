@@ -40,15 +40,19 @@ jobs:
   attest:
     name: verify build attestations on latest image
     runs-on: ubuntu-latest
-    # Loop worst case ~8.7 min (2 attempts x (2 x (90 s call + 10 s SIGKILL
-    # grace) + 60 s sleep) = 520 s) + ~10 s setup = ~8.8 min < 10-min job
-    # timeout. This matters: in the wedged-read scenario every call burns
-    # its full per-call timeout, and if the loop outlived the job budget
-    # GitHub would kill the job mid-run with conclusion "cancelled" and
-    # never upload the diagnostic message. Sizing the loop INSIDE the job
-    # budget means even a fully wedged run ends as a clean red "failure"
-    # with the explanation, never a silent "cancelled". Healthy registries
-    # answer in ~1 s; the honest failure path finishes in ~3 min.
+    # Bounded retry loop: 2 attempts x (2 x (90 s call + 10 s SIGKILL grace)
+    # + 60 s sleep) = ~8.7 min + ~10 s setup < the 10-min job timeout, so the
+    # honest failure path (~3 min) and any single-call stall always finish
+    # inside the budget.
+    #
+    # CONFIRMED 2026-11-20 (runs b40403f + dcf6b7d): even with every in-script
+    # call bounded by `timeout -k`, a fully wedged run still dies at GitHub's
+    # timeout boundary with conclusion "cancelled" and NO logs - because the
+    # wedge blocks the runner agent itself (stdout never streams), not just
+    # the cosign child process. "Cancelled" on this workflow is therefore the
+    # EXPECTED, by-design signature of the GHCR read-path incident: this is a
+    # soft gate (continue-on-error), nothing else is affected, and the hard
+    # signature gate (cosign-verify.yml) keeps working during the same window.
     timeout-minutes: 10
     continue-on-error: true
     steps:
