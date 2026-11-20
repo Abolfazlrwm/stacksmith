@@ -8,7 +8,7 @@ nothing. These tests pin that contract — it is what the UI renders as
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from chat.views import _resolve_citations
 

@@ -4,8 +4,6 @@ Pure validation: no database access anywhere in this module.
 """
 from __future__ import annotations
 
-import pytest
-
 from chat.serializers import (
     ChatRequestSerializer,
     CitationSerializer,

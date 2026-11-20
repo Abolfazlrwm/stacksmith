@@ -10,20 +10,23 @@ WORKDIR /build
 
 COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --prefix=/install -r requirements.txt
+    pip install --upgrade pip \
+    && pip install --prefix=/install -r requirements.txt
 
 # Stage 2: runtime image — no build tools, no compilers.
 FROM python:3.12-slim AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
-# Install only runtime libraries (no build-essential).
+# Install only runtime libraries (no build-essential). The dist-upgrade
+# pulls current security patches for base-image OS packages (e.g. zlib1g)
+# at build time instead of inheriting the tag's snapshot state.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        libpq5 curl \
+    && apt-get -y upgrade \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed Python packages from the builder stage.

@@ -1,8 +1,12 @@
 """Health check views — liveness and readiness."""
+import logging
+
 import redis
 from django.conf import settings
 from django.db import connection
 from django.http import JsonResponse
+
+logger = logging.getLogger(__name__)
 
 
 def live(request):
@@ -36,8 +40,11 @@ def ready(request):
         client = redis.from_url(settings.CACHES["default"]["LOCATION"], socket_timeout=2)
         client.ping()
         checks["redis"] = "ok"
-    except Exception as exc:  # noqa: BLE001
-        checks["redis"] = f"fail: {exc}"
+    except Exception:  # noqa: BLE001
+        # Do not flow the exception text into the HTTP response; the detail
+        # (which can include hostnames/URLs) stays in the server log only.
+        logger.exception("readiness: redis check failed")
+        checks["redis"] = "fail"
 
     ok = all(v == "ok" for v in checks.values())
     return JsonResponse(

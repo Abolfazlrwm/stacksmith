@@ -8,8 +8,6 @@ from django.db import migrations, models
 
 from pgvector.django import VectorField
 
-import documents.models
-
 
 class Migration(migrations.Migration):
 

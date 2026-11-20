@@ -22,13 +22,12 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from documents.models import Document
+from documents.models import Chunk
 from rag.retrieval import retrieve
 
 from .llm import answer as llm_answer
 from .models import Conversation, Message
-from .serializers import (ChatRequestSerializer, ChatResponseSerializer,
-                          CitationSerializer)
+from .serializers import ChatRequestSerializer, ChatResponseSerializer
 
 log = logging.getLogger(__name__)
 
@@ -85,7 +84,7 @@ class ChatView(APIView):
                     owner=owner,
                     title=question[:80],
                 )
-            user_msg = Message.objects.create(
+            Message.objects.create(
                 conversation=conv, role=Message.Role.USER, content=question,
             )
             assistant_msg = Message.objects.create(

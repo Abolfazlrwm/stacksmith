@@ -38,25 +38,25 @@ def setup_telemetry(service_name: str = "docubot"):
     try:
         from opentelemetry.instrumentation.django import DjangoInstrumentor
         DjangoInstrumentor().instrument()
-    except ImportError:
+    except ImportError:  # optional instrumentation package not installed; skip
         pass
 
     try:
         from opentelemetry.instrumentation.psycopg import PsycopgInstrumentor
         PsycopgInstrumentor().instrument()
-    except ImportError:
+    except ImportError:  # optional instrumentation package not installed; skip
         pass
 
     try:
         from opentelemetry.instrumentation.redis import RedisInstrumentor
         RedisInstrumentor().instrument()
-    except ImportError:
+    except ImportError:  # optional instrumentation package not installed; skip
         pass
 
     try:
         from opentelemetry.instrumentation.celery import CeleryInstrumentor
         CeleryInstrumentor().instrument()
-    except ImportError:
+    except ImportError:  # optional instrumentation package not installed; skip
         pass
 
     return True

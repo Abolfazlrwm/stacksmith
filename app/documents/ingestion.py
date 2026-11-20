@@ -7,7 +7,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
 # A chunk is roughly 512 tokens. With our simple token heuristic (4 chars ≈ 1
 # token) that is ~2000 characters. We overlap chunks by ~10% to keep passages

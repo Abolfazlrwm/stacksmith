@@ -10,6 +10,7 @@ status, so the UI can show a progress indicator.
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 from pathlib import Path, PurePath
 
@@ -21,6 +22,9 @@ from rest_framework.response import Response
 
 from .ingestion import validate_upload
 from .models import Document
+from .storage import owner_dir_name
+
+logger = logging.getLogger(__name__)
 
 
 # Cap the uploaded filename length so a malicious client cannot send a
@@ -97,13 +101,17 @@ class DocumentListCreateView(ListCreateAPIView):
         try:
             kind = validate_upload(name, data)
         except ValueError as exc:
-            return Response({"detail": str(exc)},
+            # The validator's message is internal text; echo a generic reason
+            # to the client and keep the specifics in the server log only.
+            logger.warning("rejected upload %r for owner %r: %s", name, owner, exc)
+            return Response({"detail": "invalid or unsupported file"},
                             status=status.HTTP_400_BAD_REQUEST)
 
         # Persist the raw bytes to the upload volume BEFORE creating the
-        # row, so the ingest task can read them.
+        # row, so the ingest task can read them. owner_dir_name() keeps the
+        # header-derived owner from ever acting as a traversal path component.
         upload_root = Path(getattr(settings, "DOCUBOT_UPLOAD_ROOT", "/data/uploads"))
-        upload_dir = upload_root / (owner or "_shared")
+        upload_dir = upload_root / owner_dir_name(owner)
         upload_dir.mkdir(parents=True, exist_ok=True)
         path = upload_dir / checksum
         # Write atomically: write to a tmp file, then rename.

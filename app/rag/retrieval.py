@@ -6,7 +6,6 @@ HNSW index created in the documents migration.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence
 
 from documents.models import Chunk, Document
 

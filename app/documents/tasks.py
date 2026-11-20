@@ -135,8 +135,14 @@ def _read_raw_bytes(doc: Document) -> bytes | None:
     """
     import os
     from django.conf import settings
+
+    from .storage import owner_dir_name
+
     upload_root = getattr(settings, "DOCUBOT_UPLOAD_ROOT", "/data/uploads")
-    path = os.path.join(upload_root, doc.owner or "_shared", doc.checksum)
+    # The owner in a DB row originally came from a request header; projecting
+    # it through owner_dir_name() keeps the derived path traversal-proof even
+    # for rows written before this hardening.
+    path = os.path.join(upload_root, owner_dir_name(doc.owner), doc.checksum)
     if not os.path.exists(path):
         return None
     with open(path, "rb") as fh:
