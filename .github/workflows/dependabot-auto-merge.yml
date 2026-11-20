@@ -42,10 +42,25 @@ jobs:
         run: |
           gh pr review --approve "$PR_URL" \
             --body "Auto-approved: patch dependency bump."
-          gh pr merge --auto --squash "$PR_URL" \
-            --body "Auto-merged: patch bump, all CI checks passed."
+          # Prefer auto-merge so GitHub waits for required checks when
+          # branch protection exists. GitHub refuses to ENABLE auto-merge
+          # when nothing is left to wait for ("Pull request is in clean
+          # status" — the repo has no branch protection) — in that case the
+          # PR is already fully mergeable, so squash-merge it directly.
+          # Any other failure is real and must stay visible.
+          if OUT=$(gh pr merge --auto --squash "$PR_URL" \
+                --body "Auto-merged: patch bump, all CI checks passed." 2>&1); then
+            echo "$OUT"
+          elif echo "$OUT" | grep -q "in clean status"; then
+            gh pr merge --squash "$PR_URL" \
+              --body "Auto-merged: patch bump, all CI checks passed."
+          else
+            echo "$OUT" >&2
+            exit 1
+          fi
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Approve and merge minor bumps
@@ -53,10 +68,20 @@ jobs:
         run: |
           gh pr review --approve "$PR_URL" \
             --body "Auto-approved: minor dependency bump."
-          gh pr merge --auto --squash "$PR_URL" \
-            --body "Auto-merged: minor bump, all CI checks passed."
+          # Same auto-merge-then-fallback logic as the patch step above.
+          if OUT=$(gh pr merge --auto --squash "$PR_URL" \
+                --body "Auto-merged: minor bump, all CI checks passed." 2>&1); then
+            echo "$OUT"
+          elif echo "$OUT" | grep -q "in clean status"; then
+            gh pr merge --squash "$PR_URL" \
+              --body "Auto-merged: minor bump, all CI checks passed."
+          else
+            echo "$OUT" >&2
+            exit 1
+          fi
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Label major bumps for review
@@ -76,4 +101,9 @@ jobs:
             --body "Major bump detected — left for manual review. Check breaking changes before merging."
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
+          # This job never checks out the repo, so gh must be told which
+          # repository to act on — `gh label create` cannot resolve it
+          # from a PR URL and would otherwise fail with "not a git
+          # repository".
+          GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
