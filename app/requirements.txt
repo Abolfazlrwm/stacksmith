@@ -23,8 +23,12 @@ markdown==3.11.3
 # all-MiniLM-L6-v2 (~90 MB) is downloaded on first use.
 sentence-transformers==6.3.0
 # CPU-only torch wheel; no CUDA. Keeps the runtime image small.
-# --no-deps avoids pulling a second torch copy; transformers pins its own.
-torch==2.15.0
+# The +cpu build only exists on PyTorch's CPU index (PyPI ships the CUDA
+# build plus ~2 GB of nvidia-* packages), so pin the local version and
+# add that index. sentence-transformers resolves its torch dep to this
+# exact pin; no --no-deps tricks needed.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.15.0+cpu
 
 # pgvector integration for Django models (provides VectorField + CosineDistance).
 pgvector==0.5.1
