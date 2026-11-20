@@ -1,0 +1,16 @@
+# Trivy ignore file — verified false positives only.
+#
+# CVE-2025-47273, CVE-2026-59890, GHSA-xmj3-9gf7-h52w (setuptools)
+#   Trivy parses pip's VENDORED CycloneDX SBOM (pip/_vendor/bom.cdx.json,
+#   shipped inside every pip>=26 wheel) and reads the setuptools 70.3.0 of
+#   pip's own BUILD environment from it — hence the "Third-party SBOM may
+#   lead to inaccurate vulnerability detection" warning next to these
+#   findings. The setuptools actually installed in this image is 84.2.1
+#   (>= the 78.1.1 / 83.0.0 / 84.1.0 fix versions of all three advisories),
+#   verified independently by syft and grype in the sbom workflow and by
+#   the pip install log ("Requirement already satisfied ... (84.2.1)").
+#   Remove these entries when pip ships a wheel whose SBOM no longer
+#   advertises the stale setuptools build-time version.
+CVE-2025-47273
+CVE-2026-59890
+GHSA-xmj3-9gf7-h52w

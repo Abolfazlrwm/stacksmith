@@ -46,6 +46,9 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: "0"
           ignore-unfixed: true
+          # Verified false positives only — see .trivyignore for the evidence
+          # (pip's vendored SBOM advertises its own build-time setuptools).
+          trivyignores: .trivyignore
 
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
