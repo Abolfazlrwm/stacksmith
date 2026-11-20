@@ -89,7 +89,11 @@ def test_ready_postgres_down_is_503(client, monkeypatch):
     assert resp.status_code == 503
     body = resp.json()
     assert body["status"] == "not_ready"
-    assert body["checks"]["postgres"].startswith("fail:")
+    # The body carries a fixed "fail" token — never the exception text:
+    # driver messages can leak internal hostnames/DSN details (py/
+    # stack-trace-exposure). The detail goes to the server log only.
+    assert body["checks"]["postgres"] == "fail"
+    assert "postgres is down" not in resp.content.decode()
     assert body["checks"]["redis"] == "ok"
 
 
@@ -99,7 +103,11 @@ def test_ready_redis_down_is_503(client, monkeypatch):
     monkeypatch.setattr("os.path.exists", lambda p: False)
     resp = client.get("/health/ready/")
     assert resp.status_code == 503
-    assert resp.json()["checks"]["redis"].startswith("fail:")
+    body = resp.json()
+    # Fixed "fail" token, no exception text in the response (regression
+    # guard for py/stack-trace-exposure on the readiness endpoint).
+    assert body["checks"]["redis"] == "fail"
+    assert "redis is down" not in resp.content.decode()
 
 
 def test_ready_sentinel_file_blocks_readiness(client, monkeypatch):

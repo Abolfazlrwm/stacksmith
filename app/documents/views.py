@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import re
 from pathlib import Path, PurePath
 
 from django.conf import settings
@@ -22,7 +23,7 @@ from rest_framework.response import Response
 
 from .ingestion import validate_upload
 from .models import Document
-from .storage import owner_dir_name
+from .storage import log_safe, owner_dir_name
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,11 @@ logger = logging.getLogger(__name__)
 # 10 MB filename string. The stored bytes are keyed by checksum, so the
 # filename only matters for display + extension allow-listing.
 MAX_FILENAME_LEN = 255
+
+# Upload bytes are stored under their SHA-256 hex digest; the strict
+# whitelist is both a correctness guard and a taint barrier so the
+# digest is provably the only file-name component derived from content.
+_SHA256_HEX = re.compile(r"[0-9a-f]{64}")
 
 
 class DocumentSerializer(serializers.ModelSerializer):
@@ -103,13 +109,26 @@ class DocumentListCreateView(ListCreateAPIView):
         except ValueError as exc:
             # The validator's message is internal text; echo a generic reason
             # to the client and keep the specifics in the server log only.
-            logger.warning("rejected upload %r for owner %r: %s", name, owner, exc)
+            # Both the filename and the owner header are attacker-controlled,
+            # so they are projected through log_safe() first: a raw CR/LF in
+            # either value could forge or split log entries (py/log-injection).
+            logger.warning("rejected upload %s for owner %s: %s",
+                           log_safe(name), log_safe(owner), log_safe(str(exc)))
             return Response({"detail": "invalid or unsupported file"},
                             status=status.HTTP_400_BAD_REQUEST)
 
+        # The stored filename is the hex digest, never the client-supplied
+        # name; the whitelist guard pins the value to [0-9a-f]{64} so the
+        # path below is provably checksum-keyed (py/path-injection barrier).
+        if not _SHA256_HEX.fullmatch(checksum):
+            return Response({"detail": "checksum computation failed"},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         # Persist the raw bytes to the upload volume BEFORE creating the
         # row, so the ingest task can read them. owner_dir_name() keeps the
-        # header-derived owner from ever acting as a traversal path component.
+        # header-derived owner from ever acting as a traversal path component:
+        # the projection is whitelist-validated in storage.py before any
+        # filesystem call consumes it.
         upload_root = Path(getattr(settings, "DOCUBOT_UPLOAD_ROOT", "/data/uploads"))
         upload_dir = upload_root / owner_dir_name(owner)
         upload_dir.mkdir(parents=True, exist_ok=True)

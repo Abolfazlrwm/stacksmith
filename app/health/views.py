@@ -33,8 +33,12 @@ def ready(request):
             cur.execute("SELECT 1")
             cur.fetchone()
         checks["postgres"] = "ok"
-    except Exception as exc:  # noqa: BLE001
-        checks["postgres"] = f"fail: {exc}"
+    except Exception:  # noqa: BLE001
+        # Same discipline as the redis check: driver messages can carry
+        # internal hostnames/DSN details, so nothing from the exception
+        # flows into the HTTP response — the detail stays in the log.
+        logger.exception("readiness: postgres check failed")
+        checks["postgres"] = "fail"
 
     try:
         client = redis.from_url(settings.CACHES["default"]["LOCATION"], socket_timeout=2)

@@ -134,6 +134,7 @@ def _read_raw_bytes(doc: Document) -> bytes | None:
     restarts. Returns None if the file is missing (e.g. volume rotated).
     """
     import os
+    import re
     from django.conf import settings
 
     from .storage import owner_dir_name
@@ -141,8 +142,17 @@ def _read_raw_bytes(doc: Document) -> bytes | None:
     upload_root = getattr(settings, "DOCUBOT_UPLOAD_ROOT", "/data/uploads")
     # The owner in a DB row originally came from a request header; projecting
     # it through owner_dir_name() keeps the derived path traversal-proof even
-    # for rows written before this hardening.
-    path = os.path.join(upload_root, owner_dir_name(doc.owner), doc.checksum)
+    # for rows written before this hardening: the projection is whitelist-
+    # validated in storage.py before any filesystem call consumes it.
+    owner_dir = owner_dir_name(doc.owner)
+    # Same guarantee for the checksum component: a row with a corrupted
+    # checksum (or one written by a legacy ingest) is skipped rather than
+    # opening a path we cannot prove is checksum-keyed.
+    if not re.fullmatch(r"[0-9a-f]{64}", doc.checksum or ""):
+        log.error("refusing to read document %s: checksum %s is not a sha256 hex digest",
+                  doc.pk, re.sub(r"[^A-Za-z0-9._-]", "_", str(doc.checksum or ""))[:64])
+        return None
+    path = os.path.join(upload_root, owner_dir, doc.checksum)
     if not os.path.exists(path):
         return None
     with open(path, "rb") as fh:

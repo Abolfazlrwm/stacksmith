@@ -32,6 +32,12 @@ RUN apt-get update \
 # Copy installed Python packages from the builder stage.
 COPY --from=builder /install /usr/local
 
+# The builder's "pip install --upgrade pip" does not carry over (only the
+# /install prefix is copied), so the runtime stage inherits the base tag's
+# pip. Upgrade it here explicitly: Trivy tracks the runtime pip, and the
+# pip in this image had 6 open CVEs fixed across 25.3 - 26.2.0.
+RUN python -m pip install --no-cache-dir --upgrade "pip>=26.2.0"
+
 WORKDIR /app
 
 COPY . .

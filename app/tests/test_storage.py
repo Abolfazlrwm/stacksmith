@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from documents.storage import owner_dir_name
+from documents.storage import log_safe, owner_dir_name
 
 TRAVERSAL_PAYLOADS = [
     "../../etc",
@@ -59,3 +59,33 @@ def test_owner_dir_name_empty_falls_back_to_shared():
     assert owner_dir_name("") == "_shared"
     assert owner_dir_name(None) == "_shared"
     assert owner_dir_name("<>:@") == "_shared"  # every char unsafe -> stripped
+
+
+# ---------------------------------------------------------------------------
+# log_safe — log-injection barrier (py/log-injection)
+# ---------------------------------------------------------------------------
+
+_FORGING_PAYLOADS = [
+    "line1\nline2",            # LF splits the entry
+    "line1\r\nline2",          # CRLF
+    "line1\rline2",            # CR alone
+    "\x1b[31mred\x1b[0m",      # ANSI re-colouring of a terminal
+    "\x00\x01\x02",            # control bytes
+]
+
+
+def test_log_safe_cannot_forge_or_split_log_entries():
+    for payload in _FORGING_PAYLOADS:
+        token = log_safe(payload)
+        assert "\n" not in token and "\r" not in token, payload
+        assert all(c.isalnum() or c in "._-" for c in token), (payload, token)
+
+
+def test_log_safe_preserves_ordinary_tokens():
+    assert log_safe("report.pdf") == "report.pdf"
+    assert log_safe("alice") == "alice"
+
+
+def test_log_safe_truncates_and_handles_none():
+    assert len(log_safe("x" * 500)) <= 200
+    assert log_safe(None) == "<none>"

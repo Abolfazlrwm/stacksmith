@@ -22,7 +22,6 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from documents.models import Chunk
 from rag.retrieval import retrieve
 
 from .llm import answer as llm_answer

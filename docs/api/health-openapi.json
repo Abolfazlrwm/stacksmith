@@ -49,7 +49,7 @@
             "content": {
               "application/json": {
                 "schema": {"$ref": "#/components/schemas/ReadinessResponse"},
-                "example": {"status": "not_ready", "checks": {"postgres": "fail: connection refused", "redis": "ok"}}
+                "example": {"status": "not_ready", "checks": {"postgres": "fail", "redis": "ok"}}
               }
             }
           }
