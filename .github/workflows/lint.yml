@@ -23,7 +23,7 @@ jobs:
     name: yamllint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install yamllint
         run: pip install yamllint==1.38.0
       - name: Lint all YAML
@@ -33,7 +33,7 @@ jobs:
     name: shellcheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Shellcheck every script
         run: |
           status=0
@@ -48,7 +48,7 @@ jobs:
     name: compose config
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Write CI .env
         run: cp .env.example .env
       - name: Validate compose files
