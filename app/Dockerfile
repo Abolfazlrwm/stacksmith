@@ -34,10 +34,15 @@ COPY --from=builder /install /usr/local
 
 # The builder's "pip install --upgrade pip" does not carry over (only the
 # /install prefix is copied), so the runtime stage inherits the base tag's
-# pip and setuptools. Upgrade both here explicitly: Trivy tracks the
-# runtime image, and this layer carried 6 open pip CVEs plus 3 setuptools
-# CVEs (fixed across 25.3 - 26.2.0 for pip and up to 84.1.0 for setuptools).
-RUN python -m pip install --no-cache-dir --upgrade "pip>=26.2.0" "setuptools>=84.1.0"
+# pip and setuptools. Upgrade pip here explicitly, then clear every
+# setuptools dist-info before installing the patched version: the builder
+# tree ships setuptools 84.2.1 (a torch dependency), so a plain "pip
+# install --upgrade setuptools" would report "already satisfied" and leave
+# the base image's stale setuptools-70.3.0.dist-info in place for Trivy to
+# flag (3 CVEs fixed across 78.1.1 - 84.1.0).
+RUN python -m pip install --no-cache-dir --upgrade "pip>=26.2.0" \
+    && rm -rf /usr/local/lib/python3.12/site-packages/setuptools-*.dist-info \
+    && python -m pip install --no-cache-dir --no-deps "setuptools>=84.1.0"
 
 WORKDIR /app
 
