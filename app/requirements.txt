@@ -35,8 +35,8 @@ pgvector==0.5.1
 
 # LLM provider clients — chat supports OpenAI, Anthropic, or a local
 # Ollama endpoint. Only one is required at runtime; pick via env var.
-openai==3.51.0
-anthropic==2.8.0
+openai==3.57.0
+anthropic==2.11.0
 httpx==0.28.1
 
 # CORS for the single-page chat UI served from the same origin in prod
