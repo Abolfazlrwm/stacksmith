@@ -1,0 +1,54 @@
+---
+name: Feature request
+description: Suggest an operational improvement or a new capability for the kit
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest an improvement.
+        Fill in the sections below so the proposal is concrete and reviewable.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: What cannot be done today, or is painful to do?
+      placeholder: "I cannot X because Y."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should the kit do? Be specific about scripts, files, or CI jobs.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What else did you look at, and why is it not good enough?
+    validations:
+      required: false
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Which area does this touch?
+      multiple: true
+      options:
+        - compose / deployment
+        - deploy / rollback
+        - backup / restore
+        - observability (metrics / logs / traces / alerts)
+        - security
+        - CI / workflows
+        - documentation / ADR
+    validations:
+      required: true
+  - type: checkboxes
+    id: claim
+    attributes:
+      label: Does this need a CI drill to prove it works?
+      options:
+        - label: "Yes — every claim in the README must be proven by a CI job"
+          required: false

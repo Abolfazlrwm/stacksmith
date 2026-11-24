@@ -1,0 +1,34 @@
+# CODEOWNERS — review ownership for pull requests.
+#
+# Each line: pattern  owner
+# Pull requests that touch files matching a pattern request review from
+# the owner. GitHub uses this to auto-request reviewers.
+
+# Default owner for everything not matched below.
+*                           @Abolfazlrwm
+
+# Operational scripts — the deploy, backup, restore, rotation paths.
+/scripts/                   @Abolfazlrwm
+
+# Compose files — the deployment unit and overlays.
+/docker-compose*.yml        @Abolfazlrwm
+
+# nginx configuration — the reverse proxy and TLS.
+/nginx/                     @Abolfazlrwm
+
+# Monitoring — prometheus, alertmanager, loki, tempo, grafana.
+/monitoring/                @Abolfazlrwm
+/grafana/                   @Abolfazlrwm
+
+# CI workflows — every push runs these; changes need review.
+/.github/workflows/         @Abolfazlrwm
+
+# ADRs — architectural decisions are not mergeable without review.
+/docs/adr/                  @Abolfazlrwm
+
+# Runbooks — operational procedures.
+/docs/runbooks/             @Abolfazlrwm
+
+# Security policy and contributing guide.
+/SECURITY.md                @Abolfazlrwm
+/CONTRIBUTING.md            @Abolfazlrwm
