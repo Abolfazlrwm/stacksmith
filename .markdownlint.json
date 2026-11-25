@@ -26,9 +26,10 @@
   },
 
   // Inline HTML: allow it — we use <details>, <sub>, <sup> in ADRs and
-  // the architecture doc, and <img> for the logo in README.
+  // the architecture doc, <img> + <picture> for the README banner and
+  // screenshots, and <div align>/<p align> for centered layouts.
   "MD033": {
-    "allowed_elements": ["details", "summary", "sub", "sup", "br", "kbd", "img"]
+    "allowed_elements": ["details", "summary", "sub", "sup", "br", "kbd", "img", "picture", "source", "div", "p", "a", "em", "code", "strong", "picture"]
   },
 
   // Fenced code blocks: require a language tag for syntax highlighting.
