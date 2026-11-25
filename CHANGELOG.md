@@ -6,6 +6,52 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-11-25
+
+Production hardening: the kit now proves its supply chain is clean and
+its performance is bounded.
+
+### Added
+
+- **Phase 8.1** — Automated security scanning. CodeQL (semantic code
+  analysis), Trivy (container image CVE scan, SARIF to Security tab),
+  dependency review (PR gate for vulnerable dependency bumps). ADR-0016.
+- **Phase 8.2** — SBOM generation. syft produces SPDX JSON and CycloneDX
+  JSON bills of materials for the app image; grype scans the SBOM for
+  known vulnerabilities. All artifacts uploaded with 30-day retention.
+  ADR-0017.
+- **Phase 8.3** — Load testing with k6. A 70-second load test ramps to
+  50 VUs and enforces p95 < 500ms and failure rate < 1%. A regression
+  that breaches the thresholds fails CI. ADR-0018.
+- **Phase 8.4** — Community files. Feature request issue template, pull
+  request template, CODEOWNERS.
+
+### Proven in CI (17 workflows)
+
+- lint (yamllint, shellcheck, compose config)
+- smoke (stub + prod)
+- deploy + rollback drill
+- canary failure → auto-rollback
+- restore drill + metric verification
+- encryption drill
+- integrity drill
+- rotation drill
+- logs drill (Loki)
+- alerts drill (Alertmanager)
+- tracing drill (Tempo)
+- CodeQL
+- Trivy container scan
+- SBOM generation (syft + grype)
+- k6 load test
+
+### Security posture
+
+- CodeQL scans the Python code weekly and on every push.
+- Trivy scans the built image and uploads SARIF to the Security tab.
+- Dependency review blocks PRs that introduce MODERATE+ vulnerabilities.
+- SBOM is generated in SPDX and CycloneDX formats on every push.
+- Grype scans the SBOM for known vulnerabilities.
+
 ## [0.3.0] — 2026-11-20
 
 The v0.3 roadmap is closed. Every item from issue #20 ships in this release.
