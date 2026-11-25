@@ -69,11 +69,18 @@ if [ "$ROTATE_PASSWORD" = true ]; then
   sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$NEW_PASS|" "$ENV_FILE"
   echo "[rotate] POSTGRES_PASSWORD updated in $ENV_FILE"
 
-  echo "[rotate] restarting app, worker and beat to pick up the new password"
-  # Restart (not force-recreate) so the containers re-read the env file
-  # without recreating volumes or cascading to dependencies.
-  docker compose -f "$COMPOSE_FILE" stop app-blue app-green worker beat 2>/dev/null || true
-  docker compose -f "$COMPOSE_FILE" up -d --no-deps app-blue worker beat 2>/dev/null || true
+  echo "[rotate] recreating app, worker and beat to pick up the new password"
+  # --force-recreate creates new containers that read the updated .env.
+  # --no-deps prevents cascading to postgres/redis (they keep running).
+  # Wait for postgres to accept the new password before recreating the app.
+  sleep 3
+  docker compose -f "$COMPOSE_FILE" up -d --no-deps --force-recreate \
+    app-blue worker beat 2>/dev/null || true
+  # Give the new containers time to start and run migrations.
+  sleep 5
+  # Reload nginx so it re-resolves the upstream IP (the recreated
+  # app-blue container has a new IP that nginx has not cached).
+  docker compose -f "$COMPOSE_FILE" exec -T nginx nginx -s reload 2>/dev/null || true
   echo "[rotate] done"
 fi
 
