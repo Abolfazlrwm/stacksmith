@@ -1,4 +1,10 @@
-# StackSmith
+# StackSmith × docubot
+
+<div align="center">
+
+<img src="docs/social-preview.png" alt="docubot — self-hosted document chat" width="100%">
+
+**Self-hosted document chat with RAG over pgvector.** One VPS · no Kubernetes · no cloud lock-in.
 
 [![lint](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/lint.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/lint.yml)
 [![unit](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/unit.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/unit.yml)
@@ -10,50 +16,99 @@
 [![security](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/codeql.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/codeql.yml)
 [![container scan](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/container-scan.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/container-scan.yml)
 [![Pages demo](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/deploy-demo-pages.yml/badge.svg)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/deploy-demo-pages.yml)
+
 [![Release](https://img.shields.io/github/v/release/Abolfazlrwm/stacksmith?sort=semver)](https://github.com/Abolfazlrwm/stacksmith/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Conventional Commits](https://img.shields.io/badge/commits-conventional-fe5d0f)](https://github.com/Abolfazlrwm/stacksmith/blob/main/docs/adr/0032-enforce-conventional-commits.md)
+[![tests](https://img.shields.io/badge/tests-119%20passing-34D399)](https://github.com/Abolfazlrwm/stacksmith/actions/workflows/unit.yml)
+[![ADRs](https://img.shields.io/badge/ADRs-33-38BDF8)](docs/adr/INDEX.md)
 
-> 🌐 **Live demo:** <https://abolfazlrwm.github.io/stacksmith/> —
-> interactive product + code showcase, no backend required. The same
-> page is served in-app at `/demo/` on a running stack.
+**🌐 Live demo → <https://abolfazlrwm.github.io/stacksmith/>** ·
+**📦 Latest release → [v1.2.6](https://github.com/Abolfazlrwm/stacksmith/releases/latest)**
 
-<img src="docs/logo.svg" alt="docubot logo" width="80" align="right" hspace="12" vspace="8">
+</div>
 
-## What this is
+---
 
-**docubot** is a self-hosted document-chat platform: upload PDFs,
-Markdown, and plain-text documents, then ask questions of them in a
-chat interface. Answers are grounded in your own documents via
-retrieval-augmented generation (RAG) over a `pgvector` index — no data
-leaves your machine, and there is no per-seat cloud lock-in. It is
-for small teams and individuals who want the convenience of a chat
-assistant over their private corpus without handing their files to a
-third party.
-
-**StackSmith** is the production deployment kit for docubot: a single
-VPS, no Kubernetes, no cloud lock-in — everything runs on one machine
-you can ssh into. It packages the app with nginx, Postgres, Redis, a
-full observability stack (Prometheus, Loki, Tempo, Alertmanager,
-Grafana), encrypted off-host backups, blue-green deploys, signed
-images, and the runbooks + SLOs that make it operable.
-
-> **v1.2.0 — the product catches up to the operations.** Through
-> v1.1.x the `app/` directory was a Django health-check stub; the deck
-> and this README described a document-chat product that did not exist
-> in code. v1.2.0 ships that product. See ADR-0036.
+> **docubot** is a self-hosted document-chat platform: upload PDFs,
+> Markdown, and plain-text documents, then ask questions of them in a
+> chat interface. Answers are grounded in your own documents via
+> retrieval-augmented generation (RAG) over a `pgvector` index — no data
+> leaves your machine, and there is no per-seat cloud lock-in.
 >
-> **v1.2.2 — the hardening release.** Fail-closed `ALLOWED_HOSTS`,
-> `SECURE_*` headers at the app layer, upload validation (extension
-> allow-list + magic-byte sniff + UTF-8 check + path-traversal
-> rejection), and 19 new unit tests for the upload gate. See ADR-0037.
->
-> **v1.2.3 — repo professionalization.** Rate limiting on
-> `/api/chat/` (60/min per owner, ADR-0038), dynamic version in `/`,
-> refreshed `SECURITY.md` + `CONTRIBUTING.md`, dependabot for pip +
-> npm, a `.pre-commit-config.yaml` mirroring CI, an OpenAPI spec for
-> the product API, and a security-issue template. 23 new unit tests
-> (suite now 112).
+> **StackSmith** is the production deployment kit for docubot: a single
+> VPS, no Kubernetes, no cloud lock-in — everything runs on one machine
+> you can ssh into. It packages the app with nginx, Postgres, Redis, a
+> full observability stack (Prometheus, Loki, Tempo, Alertmanager,
+> Grafana), encrypted off-host backups, blue-green deploys, signed
+> images, and the runbooks + SLOs that make it operable.
+
+## Contents
+
+- [Overview](#overview)
+- [Screenshots](#screenshots)
+- [Product features](#product-features-docubot)
+- [How it compares](#how-it-compares)
+- [Quick start](#quick-start)
+- [Architecture](#architecture)
+- [What works today (proven in CI)](#what-works-today-proven-in-ci)
+- [Architecture decisions (33 ADRs)](#architecture-decisions-33-adrs)
+- [Stability & maturity](#stability)
+- [Runbooks](#runbooks)
+- [Star history](#star-history)
+- [License](#license)
+
+## Overview
+
+## Screenshots
+
+All screenshots are from the **[live showcase](https://abolfazlrwm.github.io/stacksmith/)** — no mockups.
+
+<p align="center">
+<img src="docs/screenshots/hero.jpg" alt="Hero — interactive showcase" width="100%"><br>
+<em>The showcase opens with a live chat over the real sample corpus.<br>
+Ask a question, get an answer with citations and similarity scores.</em>
+</p>
+
+<p align="center">
+<img src="docs/screenshots/chat-and-code.jpg" alt="Chat UI beside the code that powers it" width="100%"><br>
+<em>Left: the product UI. Right: the actual <code>ChatView.post()</code><br>
+code that produced the answer. Compare feature and implementation side by side.</em>
+</p>
+
+<p align="center">
+<img src="docs/screenshots/architecture.jpg" alt="12-container architecture" width="100%"><br>
+<em>Twelve containers on one VPS, four layers:<br>edge → app → data → observability.</em>
+</p>
+
+<p align="center">
+<img src="docs/screenshots/security.jpg" alt="Upload validation + security checklist" width="100%"><br>
+<em>Click an evil file (<code>payload.exe</code>, <code>evil.pdf</code>,<br>
+<code>binary.txt</code>) and see the exact layer that rejects it.<br>
+Right: a 16-item security checklist, each mapped to its enforcing file.</em>
+</p>
+
+## How it compares
+
+docubot is for operators who want the convenience of a hosted
+document-chat product without handing their corpus to a third party.
+The trade-offs against the obvious alternatives:
+
+| | **docubot** | Hosted SaaS (e.g. ChatGPT Plus, custom GPTs) | PrivateGPT | Dify |
+|---|---|---|---|---|
+| Self-hosted, no cloud lock-in | ✅ one VPS | ❌ | ✅ | ✅ |
+| Documents never leave your host | ✅ | ❌ | ✅ | ⚠️ depends on config |
+| Multi-user isolation | ✅ owner-scoped queries | n/a | ❌ single-user | ✅ |
+| Production ops included | ✅ backups, blue-green, SLOs, runbooks | ✅ (their problem) | ❌ | ⚠️ partial |
+| Observability stack | ✅ Prometheus + Loki + Tempo + Grafana | hidden | ❌ | ⚠️ |
+| Signed deploys (cosign) | ✅ | hidden | ❌ | ❌ |
+| Restore drill in CI | ✅ every push | n/a | ❌ | ❌ |
+| Vector store | pgvector (Postgres-native) | hidden | ChromaDB | multiple |
+| Deployment unit | docker-compose, one machine | SaaS | local/docker | k8s or docker |
+
+docubot does not try to be the most feature-rich RAG framework — it is
+the most *operable* one. Every claim above is backed by a CI workflow
+that proves it on every push.
 
 ## Product features (docubot)
 
@@ -260,6 +315,15 @@ are intentionally not renumbered. See
     ├── api/                      # OpenAPI 3.0 spec
     └── known-limitations.md
 ```
+
+## Star history
+
+<a href="https://star-history.com/#Abolfazlrwm/stacksmith&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Abolfazlrwm/stacksmith&type=Date&theme=dark">
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Abolfazlrwm/stacksmith&type=Date">
+  </picture>
+</a>
 
 ## License
 

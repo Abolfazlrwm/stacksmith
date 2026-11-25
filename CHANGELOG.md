@@ -6,6 +6,50 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.6] — 2026-11-25
+
+The visibility release. v1.2.5 made the project *runnable* in a
+browser; v1.2.6 makes it *discoverable* and *credible* at first
+glance — the two things top repositories do that ours did not.
+
+### Added — README redesign
+
+A top-repository-grade README:
+
+- **Hero banner** — `docs/social-preview.png` (1280×640) leads the
+  page, centered title, tagline, and a tight badge cluster (CI gates,
+  release, license, conventional commits, test count, ADR count).
+- **Table of contents** — every section reachable from the top.
+- **Screenshots section** — four compressed JPEGs (under 100 KB each)
+  captured from the live showcase: hero, chat+code, architecture,
+  security. Each captioned, each under 100 KB.
+- **Comparison table** — docubot vs Hosted SaaS vs PrivateGPT vs Dify
+  across nine dimensions (self-hosted, no-cloud-lock-in, multi-user,
+  production ops, observability, signed deploys, restore drill, vector
+  store, deployment unit). Every claim is backed by a CI workflow.
+- **Star history** — live chart via star-history.com at the bottom.
+
+### Added — branding assets
+
+- `docs/social-preview.png` — GitHub social preview (1280×640). Save
+  to `download/` for the maintainer to upload in repo Settings →
+  Social preview.
+- `docs/screenshots/{hero,chat-and-code,architecture,security}.jpg` —
+  four README screenshots, captured from the live Pages deploy and
+  compressed with `scripts/compress-screenshots.py`.
+- `scripts/make-social-preview.py` — the matplotlib generator for the
+  social preview, kept for regeneration.
+
+### Changed
+
+- README no longer carries the v1.2.0–v1.2.3 release-note blockquotes
+  at the top — those belong in CHANGELOG (where they already are) and
+  were pushing the actual content below the fold.
+- `.markdownlint.json` allows `<picture>`, `<source>`, `<div>`,
+  `<p>`, `<em>`, `<code>`, `<strong>`, `<a>` inline HTML for the
+  banner, screenshots, and star-history blocks.
+- VERSION 1.2.5 → 1.2.6.
+
 ## [1.2.5] — 2026-11-19
 
 The showcase release. v1.2.4 made the CI behave like a professional
