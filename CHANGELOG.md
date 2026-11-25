@@ -6,6 +6,70 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.7] — 2026-11-25
+
+The UI redesign release. v1.2.6 made the project visible; v1.2.7 makes
+it *not look generated*. Every output of an image-or-code generator
+shipped the same look: Tailwind navy (`#0B1220`) + sky-blue
+(`#38BDF8`), `box-shadow: 0 0 12px` glows on every accent dot,
+`backdrop-filter: blur` navbars, `radial-gradient` hero washes, the
+Space Grotesk + Inter + JetBrains Mono font trio, and emoji icons in
+cards. v1.2.7 replaces all of it with a deliberate, human-chosen
+identity shared between the product UI and the showcase.
+
+### Changed — palette + type (one identity, two surfaces)
+
+- **Palette**: warm ink `#171421` (purple-black, not Tailwind navy),
+  card `#211e2b`, a single earthy **ochre** accent `#d4a055` (not the
+  AI-default sky-blue), moss green `#7fa67e` for "ok", brick `#c66b6b`
+  for "bad", paper text `#e8e4dc` (not blue-white).
+- **Type**: IBM Plex Sans + IBM Plex Mono (engineer-chosen) instead
+  of the Space Grotesk + Inter + JetBrains Mono combo every generator
+  ships.
+- **Removed every `box-shadow: 0 0 Npx` glow** — on nav dots, brand
+  dots, timeline markers. Flat fills instead.
+- **Removed `backdrop-filter: blur`** on the sticky nav — solid
+  background.
+- **Removed the two `radial-gradient` hero washes** — the hero is now
+  a flat surface with a top border.
+- **Square corners**: dropped `border-radius: 12px` / `10px` /
+  `14px` everywhere. Cards use 1px gap-on-line grids; nodes use a
+  2px top border for layer color; badges use a 1px outline.
+- **Bubbles** (chat UI): left 2px accent border instead of rounded
+  pill — same idea as a quoted block in prose.
+
+### Changed — content
+
+- **Removed all emoji** from the showcase body (💡 📄 📦 🔁 🔐 ✍️
+  🎞️ 🔢) and the chat UI (⬆). Replaced with mono-styled single
+  characters or numbered card markers (`01 — deploy`).
+- Refreshed the version timeline to cover v1.2.0 → v1.2.7 (was stuck
+  at v1.2.4).
+- Refreshed the hero stats (119 tests, 31 workflows, 12 containers,
+  v1.2.7) — were stale at v1.2.4 / 113 / 30 / 11.
+- The chat UI brand badge still fetches `/` at runtime (v1.2.5 fix
+  preserved); only the colours changed.
+
+### Changed — branding
+
+- `docs/logo.svg` — redrawn with the new palette: square background
+  (no `rx=14`), flat ochre bubble (no gradient), no live-dot. Same
+  document + bubble + ink-dots geometry.
+- `docs/social-preview.png` — regenerated with the new palette. Now
+  55 KB (was 105 KB): the gradient glow was the heavy part.
+- Favicons (inline data-URI in `chat.html` + `demo.html`) updated to
+  match.
+
+### Verification
+
+- `make test`: 127 pass (no app logic changed — CSS + body markup
+  only; the version-sync test still pins `VERSION ↔ CHANGELOG`).
+- No AI-default colour string remains in either template
+  (`#0B1220`, `#38BDF8`, `#94A3B8`, `#1E293B`, `#334155` all gone).
+- No `box-shadow` glow, no `backdrop-filter`, no hero gradient, no
+  emoji in body.
+- VERSION 1.2.6 → 1.2.7.
+
 ## [1.2.6] — 2026-11-25
 
 The visibility release. v1.2.5 made the project *runnable* in a

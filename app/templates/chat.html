@@ -4,32 +4,35 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>docubot — chat over your documents</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230B1220'/%3E%3Cpath d='M16 14h20l8 8v28a2 2 0 0 1-2 2h-26a2 2 0 0 1-2-2v-34a2 2 0 0 1 2-2z' fill='%2318233A' stroke='%23334555' stroke-width='1.5'/%3E%3Cpath d='M36 14l8 8h-8z' fill='%23334555'/%3E%3Crect x='20' y='28' width='16' height='2.5' rx='1.25' fill='%2338BDF8'/%3E%3Crect x='20' y='34' width='20' height='2.5' rx='1.25' fill='%2364748B'/%3E%3Crect x='20' y='40' width='12' height='2.5' rx='1.25' fill='%2364748B'/%3E%3Cpath d='M40 38c6 0 10 4 10 9s-4 9-10 9c-2 0-3 0-5-1l-4 2 1-4c-2-2-2-4-2-6 0-5 4-9 10-9z' fill='%2338BDF8'/%3E%3Ccircle cx='50' cy='16' r='3' fill='%2334D399'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23171421'/%3E%3Cpath d='M16 14h20l8 8v28a2 2 0 0 1-2 2h-26a2 2 0 0 1-2-2v-34a2 2 0 0 1 2-2z' fill='%23211e2b' stroke='%23423d4f' stroke-width='1.5'/%3E%3Cpath d='M36 14l8 8h-8z' fill='%23423d4f'/%3E%3Crect x='20' y='28' width='16' height='2.5' fill='%23d4a055'/%3E%3Crect x='20' y='34' width='20' height='2.5' fill='%236e6a62'/%3E%3Crect x='20' y='40' width='12' height='2.5' fill='%236e6a62'/%3E%3Cpath d='M40 38c6 0 10 4 10 9s-4 9-10 9c-2 0-3 0-5-1l-4 2 1-4c-2-2-2-4-2-6 0-5 4-9 10-9z' fill='%23d4a055'/%3E%3C/svg%3E">
 <style>
+  /* Same palette + type as demo.html — one product identity. */
   :root {
-    --bg: #0B1220;
-    --bg-elev: #131C2E;
-    --bg-card: #18233A;
-    --primary: #38BDF8;
-    --primary-dim: #0EA5E9;
-    --accent: #F59E0B;
-    --ok: #34D399;
-    --text: #E2E8F0;
-    --text-dim: #94A3B8;
-    --text-mute: #64748B;
-    --line: #1E293B;
-    --font-h: 'Space Grotesk', 'Inter', system-ui, sans-serif;
-    --font-b: 'Inter', system-ui, sans-serif;
-    --font-m: 'JetBrains Mono', 'SF Mono', monospace;
+    --bg:        #171421;
+    --bg-elev:   #1d1928;
+    --bg-card:   #211e2b;
+    --primary:   #d4a055;
+    --primary-2: #b88842;
+    --ok:        #7fa67e;
+    --bad:       #c66b6b;
+    --text:      #e8e4dc;
+    --text-dim:  #9c968a;
+    --text-mute: #6e6a62;
+    --line:      #322e3d;
+    --line-2:    #423d4f;
+    --font-h: 'IBM Plex Sans', system-ui, sans-serif;
+    --font-b: 'IBM Plex Sans', system-ui, sans-serif;
+    --font-m: 'IBM Plex Mono', 'SF Mono', monospace;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--bg); color: var(--text);
     font-family: var(--font-b); font-size: 15px; line-height: 1.55;
     display: grid; grid-template-columns: 320px 1fr; height: 100vh;
+    -webkit-font-smoothing: antialiased;
   }
   ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 5px; }
+  ::-webkit-scrollbar-thumb { background: var(--line-2); }
   ::-webkit-scrollbar-track { background: transparent; }
 
   /* sidebar */
@@ -42,51 +45,53 @@
     display: flex; align-items: center; gap: 10px;
   }
   .brand .dot {
-    width: 10px; height: 10px; border-radius: 50%; background: var(--primary);
-    box-shadow: 0 0 12px var(--primary);
+    width: 8px; height: 8px; background: var(--primary);
   }
-  .brand h1 { margin: 0; font-family: var(--font-h); font-size: 18px; font-weight: 600; }
+  .brand h1 { margin: 0; font-family: var(--font-h); font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
   .brand .ver { font-family: var(--font-m); font-size: 11px; color: var(--text-mute); margin-left: auto; }
 
   .sidebar-section { padding: 16px 20px; border-bottom: 1px solid var(--line); }
   .sidebar-section h2 {
     margin: 0 0 10px; font-family: var(--font-m); font-size: 11px;
-    text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-mute);
     font-weight: 500;
   }
 
   /* upload */
   .drop {
-    border: 1px dashed var(--line); border-radius: 8px; padding: 14px;
+    border: 1px dashed var(--line-2); padding: 14px;
     text-align: center; cursor: pointer; transition: border-color .15s, background .15s;
   }
-  .drop:hover, .drop.drag { border-color: var(--primary); background: rgba(56,189,248,0.06); }
+  .drop:hover, .drop.drag { border-color: var(--primary); background: rgba(212,160,85,0.05); }
   .drop p { margin: 0; font-size: 13px; color: var(--text-dim); }
-  .drop .ico { font-size: 20px; color: var(--primary); margin-bottom: 6px; }
+  .drop .ico { font-size: 18px; color: var(--primary); margin-bottom: 6px; }
   .drop input { display: none; }
 
   /* document list */
   .docs { list-style: none; padding: 0; margin: 8px 0 0; max-height: 220px; overflow-y: auto; }
   .docs li {
-    padding: 8px 10px; border-radius: 6px; margin-bottom: 4px;
+    padding: 8px 10px; margin-bottom: 2px;
     display: flex; align-items: center; gap: 8px; font-size: 13px;
+    border-bottom: 1px solid var(--line);
   }
   .docs li .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .docs li .badge {
-    font-family: var(--font-m); font-size: 10px; padding: 2px 6px; border-radius: 4px;
+    font-family: var(--font-m); font-size: 10px; padding: 1px 6px;
     text-transform: uppercase; letter-spacing: 0.05em;
+    border: 1px solid var(--line-2);
   }
-  .badge.ready { background: rgba(52,211,153,0.15); color: var(--ok); }
-  .badge.pending, .badge.ingesting { background: rgba(245,158,11,0.15); color: var(--accent); }
-  .badge.failed { background: rgba(248,113,113,0.15); color: #F87171; }
+  .badge.ready { color: var(--ok); border-color: var(--ok); }
+  .badge.pending, .badge.ingesting { color: var(--primary); border-color: var(--primary); }
+  .badge.failed { color: var(--bad); border-color: var(--bad); }
 
   .owner-box { margin-top: auto; padding: 14px 20px; border-top: 1px solid var(--line); }
   .owner-box label { display: block; font-family: var(--font-m); font-size: 10px;
-    text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 6px; }
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-mute); margin-bottom: 6px; }
   .owner-box input {
-    width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+    width: 100%; background: var(--bg); border: 1px solid var(--line-2);
     color: var(--text); padding: 8px 10px; font-family: var(--font-m); font-size: 13px;
   }
+  .owner-box input:focus { outline: none; border-color: var(--primary); }
 
   /* chat */
   main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
@@ -94,21 +99,21 @@
     padding: 16px 24px; border-bottom: 1px solid var(--line);
     display: flex; align-items: center; gap: 16px;
   }
-  header.topbar h2 { margin: 0; font-family: var(--font-h); font-size: 20px; font-weight: 600; }
+  header.topbar h2 { margin: 0; font-family: var(--font-h); font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
   header.topbar .meta { margin-left: auto; font-family: var(--font-m); font-size: 12px; color: var(--text-dim); }
 
   .thread { flex: 1; overflow-y: auto; padding: 24px; }
   .msg { margin-bottom: 18px; max-width: 780px; }
   .msg .who { font-family: var(--font-m); font-size: 11px; text-transform: uppercase;
-    letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 4px; }
+    letter-spacing: 0.06em; color: var(--text-mute); margin-bottom: 4px; }
   .msg.user .who { color: var(--primary); }
-  .msg.assistant .who { color: var(--accent); }
+  .msg.assistant .who { color: var(--text-dim); }
   .msg .bubble { background: var(--bg-card); border: 1px solid var(--line);
-    border-radius: 10px; padding: 12px 16px; }
-  .msg.user .bubble { background: rgba(56,189,248,0.06); border-color: rgba(56,189,248,0.2); }
+    border-left: 2px solid var(--line-2); padding: 12px 16px; }
+  .msg.user .bubble { background: var(--bg-elev); border-left: 2px solid var(--primary); }
   .msg .bubble p { margin: 0 0 8px; }
   .msg .bubble p:last-child { margin: 0; }
-  .msg .bubble code { font-family: var(--font-m); font-size: 13px; background: var(--bg); padding: 1px 4px; border-radius: 3px; }
+  .msg .bubble code { font-family: var(--font-m); font-size: 13px; background: var(--bg); padding: 1px 5px; color: var(--primary); }
 
   .citations {
     margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line);
@@ -116,10 +121,10 @@
   }
   .citations .cite-label {
     font-family: var(--font-m); font-size: 10px; text-transform: uppercase;
-    letter-spacing: 0.1em; color: var(--text-mute); margin-bottom: 4px;
+    letter-spacing: 0.06em; color: var(--text-mute); margin-bottom: 4px;
   }
   .citation {
-    background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+    background: var(--bg); border: 1px solid var(--line);
     padding: 8px 10px; font-size: 12px;
   }
   .citation .cite-head {
@@ -127,7 +132,7 @@
   }
   .citation .cite-num {
     font-family: var(--font-m); font-size: 10px; color: var(--primary);
-    background: rgba(56,189,248,0.1); padding: 1px 6px; border-radius: 3px;
+    border: 1px solid var(--primary); padding: 0 5px;
   }
   .citation .cite-score { font-family: var(--font-m); font-size: 10px; color: var(--text-mute); }
   .citation .cite-title { font-weight: 500; color: var(--text); }
@@ -136,7 +141,7 @@
   .empty {
     text-align: center; padding: 60px 20px; color: var(--text-dim);
   }
-  .empty h3 { font-family: var(--font-h); font-weight: 500; color: var(--text); margin: 0 0 8px; }
+  .empty h3 { font-family: var(--font-h); font-weight: 500; color: var(--text); margin: 0 0 8px; letter-spacing: -0.01em; }
 
   /* composer */
   .composer {
@@ -144,24 +149,25 @@
     display: flex; gap: 10px; align-items: flex-end; background: var(--bg-elev);
   }
   .composer textarea {
-    flex: 1; resize: none; background: var(--bg); border: 1px solid var(--line);
-    border-radius: 8px; color: var(--text); padding: 10px 12px;
+    flex: 1; resize: none; background: var(--bg); border: 1px solid var(--line-2);
+    color: var(--text); padding: 10px 12px;
     font-family: var(--font-b); font-size: 14px; line-height: 1.5; min-height: 44px; max-height: 160px;
   }
   .composer textarea:focus { outline: none; border-color: var(--primary); }
   .composer button {
-    background: var(--primary); color: #0B1220; border: 0; border-radius: 8px;
+    background: var(--primary); color: #171421; border: 0;
     padding: 10px 18px; font-family: var(--font-h); font-weight: 600; font-size: 14px;
     cursor: pointer; transition: background .15s;
   }
   .composer button:disabled { background: var(--text-mute); cursor: not-allowed; }
-  .composer button:hover:not(:disabled) { background: var(--primary-dim); }
+  .composer button:hover:not(:disabled) { background: var(--primary-2); }
 
   .pending { opacity: 0.6; }
   .pending .who::after { content: " · typing…"; color: var(--text-mute); }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 </head>
 <body>
 
@@ -175,7 +181,7 @@
   <div class="sidebar-section">
     <h2>Upload document</h2>
     <label class="drop" id="drop">
-      <div class="ico">⬆</div>
+      <div class="ico" style="font-family:var(--font-m);">↑</div>
       <p>Drop a PDF, Markdown, or .txt file<br><span style="color:var(--text-mute)">or click to browse</span></p>
       <input type="file" id="file" accept=".pdf,.md,.markdown,.txt,.text">
     </label>
