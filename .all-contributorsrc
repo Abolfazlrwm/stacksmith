@@ -1,0 +1,33 @@
+{
+  "projectName": "stacksmith",
+  "projectOwner": "Abolfazlrwm",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "files": ["README.md"],
+  "imageSize": 40,
+  "commit": false,
+  "commitConvention": "none",
+  "contributors": [
+    {
+      "login": "Abolfazlrwm",
+      "name": "Abolfazl Rahimi",
+      "avatar_url": "https://avatars.githubusercontent.com/u/Abolfazlrwm?v=4",
+      "profile": "https://github.com/Abolfazlrwm",
+      "contributions": [
+        "architecture",
+        "code",
+        "doc",
+        "design",
+        "infra",
+        "security",
+        "test",
+        "review",
+        "maintenance",
+        "tooling"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "skipCi": true,
+  "contributorsSortAlphabetically": false
+}

@@ -1,0 +1,93 @@
+// Renovate configuration — complements dependabot.yml.
+//
+// Why both? Dependabot handles the weekly version-bump PRs for the
+// ecosystems we ship (pip, npm, docker, github-actions). Renovate
+// handles the things dependabot can't or won't:
+//   - lock-file maintenance (keeps transitive deps fresh, not just
+//     the direct ones dependabot bumps)
+//   - grouping by upstream release (major / minor / patch) so a
+//     Django 5.1→5.2 PR doesn't ride along with a 5.1.3→5.1.4 patch
+//   - auto-merge of dev/CI tooling patches that pass CI (pre-commit
+//     hooks, action versions) — dependabot auto-merge is off by
+//     default and noisy
+//   - vulnerability alerts grouped into one PR, not N
+//
+// To enable: install the Renovate GitHub App on the repo. Until then
+// this file is inert; it will not double-up with dependabot.
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":semanticCommitScope(deps)",
+    ":dependencyDashboard",
+    "schedule:earlyMondays",
+    "group:recommended"
+  ],
+
+  // Keep it quiet — one consolidated dashboard issue, weekly cadence.
+  "dependencyDashboardTitle": "Renovate dependency dashboard",
+  "timezone": "Asia/Tehran",
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "branchConcurrentLimit": 5,
+
+  // Lock-file maintenance: refresh transitive deps every Monday so we
+  // never accumulate a year of drift in requirements.txt / package-lock.
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"],
+    "commitMessageSuffix": "(lockfile maintenance)"
+  },
+
+  // Auto-merge the boring stuff once CI is green: pre-commit hook
+  // versions, action versions, dev-only tooling. Never auto-merge
+  // app runtime deps (django, drf, the LLM SDKs) — those need review.
+  "packageRules": [
+    {
+      "description": "Auto-merge CI/dev tooling patches after green CI",
+      "matchDepTypes": ["devDependencies", "action", "pre-commit"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "platformAutomerge": true
+    },
+    {
+      "description": "Group Django + DRF + pg into one PR (DB-touching)",
+      "matchPackagePatterns": ["^django", "^djangorestframework", "^pgvector", "^psycopg"],
+      "groupName": "django stack",
+      "groupSlug": "django-stack"
+    },
+    {
+      "description": "Group the LLM SDKs (breaking changes cluster)",
+      "matchPackagePatterns": ["^openai", "^anthropic", "^sentence-transformers", "^transformers"],
+      "groupName": "llm sdk",
+      "groupSlug": "llm-sdk"
+    },
+    {
+      "description": "Never auto-merge major bumps of app runtime",
+      "matchFileNames": ["app/requirements.txt"],
+      "matchUpdateTypes": ["major"],
+      "labels": ["dependencies", "python", "breaking"],
+      "automerge": false
+    },
+    {
+      "description": "Vulnerability PRs get the security label and a high priority",
+      "matchDatasources": ["pypi", "npm", "docker", "github-actions"],
+      "matchUpdateTypes": ["patch"],
+      "labels": ["dependencies", "security"]
+    }
+  ],
+
+  // Reuse the labels already used by dependabot + the issue triage.
+  "labels": ["dependencies"],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security", "dependencies"],
+    "schedule": ["at any time"]
+  },
+
+  // Don't touch the version files we manage by hand for releases.
+  "ignorePaths": ["VERSION", "CHANGELOG.md", "docs/adr/**"]
+}

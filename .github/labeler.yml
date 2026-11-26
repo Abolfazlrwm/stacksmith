@@ -1,0 +1,81 @@
+# PR auto-labeler. Runs on every opened/edited PR; adds labels based
+# on the paths the PR touches so triage is automatic. The labels are
+# the same set used by dependabot + the issue templates, so a glance
+# at the label column tells you the PR's blast radius.
+#
+# Spec: https://github.com/actions/labeler
+
+# --- code surfaces ---
+python:
+  - changed-files:
+      - any-glob-to-any-file: ['app/**/*.py', 'tests/**/*.py', 'scripts/**/*.py']
+
+ui:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'app/templates/**'
+          - 'app/static/**'
+          - 'docs/screenshots/**'
+          - 'docs/social-preview.png'
+
+infra:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docker-compose*.yml'
+          - 'nginx/**'
+          - 'postgres/**'
+          - 'grafana/**'
+          - 'monitoring/**'
+          - 'deploy/**'
+          - 'terraform/**'
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/workflows/**'
+          - '.github/labeler.yml'
+          - '.github/release-drafter.yml'
+
+security:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'app/security_checks/**'
+          - '.github/workflows/cosign-*.yml'
+          - '.github/workflows/container-scan.yml'
+          - '.github/workflows/codeql.yml'
+          - '.github/workflows/dependency-review.yml'
+          - 'scripts/backup-db.sh'
+          - 'SECURITY.md'
+
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.md'
+          - 'docs/**'
+          - 'CITATION.cff'
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'app/requirements.txt'
+          - 'commitlint/package.json'
+          - 'commitlint/package-lock.json'
+          - '.pre-commit-config.yaml'
+
+# --- release-surface (anything that ships to a user) ---
+release:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'VERSION'
+          - 'CHANGELOG.md'
+          - 'docs/adr/**'
+
+# --- tests / drills (anything that only proves the system works) ---
+testing:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'tests/**'
+          - 'app/tests/**'
+          - '.github/workflows/*drill*.yml'
+          - '.github/workflows/load-test.yml'
+          - '.github/workflows/smoke.yml'

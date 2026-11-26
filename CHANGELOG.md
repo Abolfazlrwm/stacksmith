@@ -6,6 +6,102 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.8] — 2026-11-26
+
+The OSS-maturity release. v1.2.7 made the project *look*
+professional; v1.2.8 makes the *project governance and contributor
+experience* match what a top-tier OSS repo actually has. No app
+logic, no UI, no deploy changes — every item here is repo plumbing
+that a careful visitor checks for.
+
+### Added — citation + community
+
+- **`CITATION.cff`** — GitHub now renders a "Cite this repository"
+  card in the sidebar and exposes it via the citation API. Academic
+  users get a ready-made citation; a future Zenodo DOI will read
+  from this file.
+- **`.all-contributorsrc`** + a Contributors table in the README —
+  the All Contributors spec, so non-code contributions (reviews,
+  docs, design, security reports) get credit too. Self-serve: a
+  contributor comments `@all-contributors please add <user> for
+  <contribution>` on any issue.
+- **`docs/GOVERNANCE.md`** — the decision model. Honest about the
+  project's shape: single-maintainer, open to contributors, BDFL
+  until a 2nd maintainer arrives, lazy consensus, branch
+  protection rules, and the explicit path from contributor to
+  maintainer.
+- **`docs/MAINTAINERS.md`** — who has merge access right now, what
+  they're responsible for, and an Emeritus section for when
+  maintainers step down.
+
+### Added — dependency hygiene
+
+- **`renovate.json5`** — complements the existing
+  `dependabot.yml`. Dependabot does the weekly version-bump PRs;
+  Renovate does the things dependabot can't: lock-file maintenance
+  (transitive deps, not just direct), grouping by upstream release
+  (Django/DRF/pg as one PR, LLM SDKs as another), auto-merge of
+  dev/CI tooling patches after green CI, and consolidated
+  vulnerability PRs. Inert until the Renovate GitHub App is
+  installed; will not double-up with dependabot.
+
+### Added — PR triage automation
+
+- **`.github/labeler.yml`** + **`.github/workflows/labeler.yml`** —
+  PRs are now auto-labeled by the paths they touch (`python`, `ui`,
+  `infra`, `ci`, `security`, `docs`, `dependencies`, `release`,
+  `testing`). The label column on the PR list is accurate from the
+  moment a PR is filed; no manual triage.
+
+### Changed — repo settings (via API, not in the diff)
+
+- **Branch protection on `main` is now ON.** Before this release,
+  `main` was unprotected. Now requires 11 status checks (markdown
+  lint, yamllint, shellcheck, compose config, commitlint, unit
+  tests, stub stack, CodeQL, dependency review, Trivy scan, SBOM),
+  strict (PR branch must be up-to-date with `main`), linear
+  history, no force-pushes, no deletions. Admin enforcement is off
+  so the maintainer can still merge a hotfix if CI is flaky, but
+  the default path is gated. `required_approving_review_count` is 0
+  for now (single-maintainer); GOVERNANCE.md says to bump it to 1
+  when a 2nd maintainer arrives. (Cosign signing runs post-merge
+  on `main` via `workflow_run`, so it is intentionally not in the
+  required-PR list — the supply-chain gate on the PR itself is
+  Trivy + SBOM + CodeQL + dependency-review.)
+- **Merge method is now squash-only.** Disabled merge-commit and
+  rebase-merge; the squash commit title is the PR title, body is
+  the PR description. History stays a clean line of
+  conventional-commit messages. `delete_branch_on_merge` stays on.
+
+### Changed — README
+
+- New **Contributors** section (between Star history and License)
+  with the All Contributors table.
+- New **Governance** section pointing at GOVERNANCE.md and
+  MAINTAINERS.md, with the three-line summary of the model.
+- Table of contents updated to include both new sections.
+
+### Changed — community files
+
+- `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CONTRIBUTING.md`, and
+  `LICENSE` are now symlinked into `.github/` so GitHub's Community
+  Profile sidebar auto-links them. One source of truth; no drift.
+
+### Verification
+
+- `markdownlint` clean on all new/changed `.md` files.
+- `.github/labeler.yml` parses; 9 labels defined, all with valid
+  path globs.
+- `renovate.json5` is valid JSON5 (Renovate will validate on first
+  run; the file is inert until the app is installed).
+- Branch protection applied via API and re-read back: 11 contexts,
+  strict, linear history, no force-push. Merge settings re-read:
+  squash-only, PR_TITLE/PR_BODY.
+- No app/deploy/UI changes, so the existing 127-test suite and
+  drill matrix are unaffected.
+
+VERSION 1.2.7 -> 1.2.8.
+
 ## [1.2.7] — 2026-11-25
 
 The UI redesign release. v1.2.6 made the project visible; v1.2.7 makes
