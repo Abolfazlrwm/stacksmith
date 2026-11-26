@@ -11,7 +11,7 @@ x-app: &appdef
   build:
     context: ./app
     dockerfile: Dockerfile
-  image: stacksmith/app:latest
+  image: ${APP_IMAGE:-stacksmith/app:latest}
   env_file: .env
   command: /app/entrypoint.sh
   depends_on:
