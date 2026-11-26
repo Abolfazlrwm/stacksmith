@@ -56,15 +56,18 @@ that a careful visitor checks for.
 ### Changed — repo settings (via API, not in the diff)
 
 - **Branch protection on `main` is now ON.** Before this release,
-  `main` was unprotected. Now requires 12 status checks (markdown
+  `main` was unprotected. Now requires 11 status checks (markdown
   lint, yamllint, shellcheck, compose config, commitlint, unit
-  tests, stub stack, CodeQL, dependency review, Trivy scan, SBOM,
-  cosign sign), strict (PR branch must be up-to-date with `main`),
-  linear history, no force-pushes, no deletions. Admin enforcement
-  is off so the maintainer can still merge a hotfix if CI is flaky,
-  but the default path is gated. `required_approving_review_count`
-  is 0 for now (single-maintainer); GOVERNANCE.md says to bump it
-  to 1 when a 2nd maintainer arrives.
+  tests, stub stack, CodeQL, dependency review, Trivy scan, SBOM),
+  strict (PR branch must be up-to-date with `main`), linear
+  history, no force-pushes, no deletions. Admin enforcement is off
+  so the maintainer can still merge a hotfix if CI is flaky, but
+  the default path is gated. `required_approving_review_count` is 0
+  for now (single-maintainer); GOVERNANCE.md says to bump it to 1
+  when a 2nd maintainer arrives. (Cosign signing runs post-merge
+  on `main` via `workflow_run`, so it is intentionally not in the
+  required-PR list — the supply-chain gate on the PR itself is
+  Trivy + SBOM + CodeQL + dependency-review.)
 - **Merge method is now squash-only.** Disabled merge-commit and
   rebase-merge; the squash commit title is the PR title, body is
   the PR description. History stays a clean line of
@@ -91,7 +94,7 @@ that a careful visitor checks for.
   path globs.
 - `renovate.json5` is valid JSON5 (Renovate will validate on first
   run; the file is inert until the app is installed).
-- Branch protection applied via API and re-read back: 12 contexts,
+- Branch protection applied via API and re-read back: 11 contexts,
   strict, linear history, no force-push. Merge settings re-read:
   squash-only, PR_TITLE/PR_BODY.
 - No app/deploy/UI changes, so the existing 127-test suite and
