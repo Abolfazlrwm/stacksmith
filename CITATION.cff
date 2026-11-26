@@ -1,0 +1,47 @@
+# CITATION.cff — GitHub renders this in the repo sidebar ("Cite this
+# repository") and exposes it via the GitHub citation API. Fill it so
+# academic users can cite the work and Zenodo can mint a DOI later.
+#
+# Spec: https://github.com/citation-file-format/citation-file-format
+
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "StackSmith: production deployment kit for self-hosted document chat"
+abstract: >-
+  StackSmith is a self-hosted deployment kit for docubot, a document-grounded
+  chat assistant with retrieval-augmented generation over pgvector. It packages
+  the full production stack — app + worker + beat, Postgres 17 with pgvector,
+  Redis, Nginx, Prometheus/Grafana/Loki/Tempo — as a single docker-compose
+  deployment unit runnable on one VPS, with blue-green deploys, cosign-signed
+  images, encrypted off-host backups, restore drills, and an SLO/error-budget
+  model. This repository is the deployment kit; the product API it ships is
+  defined in app/ and surfaced at /docs/openapi.
+keywords:
+  - retrieval-augmented-generation
+  - pgvector
+  - self-hosted
+  - docker-compose
+  - observability
+  - blue-green-deployment
+  - supply-chain-security
+  - llm
+authors:
+  - given-names: "Abolfazl"
+    family-names: "Rahimi"
+    alias: "Abolfazlrwm"
+    orcid: "https://orcid.org/0009-0000-0000-0000"
+type: software
+version: "1.2.7"
+date-released: "2026-11-25"
+license: MIT
+license-url: "https://github.com/Abolfazlrwm/stacksmith/blob/main/LICENSE"
+repository-code: "https://github.com/Abolfazlrwm/stacksmith"
+preferred-citation:
+  type: software
+  title: "StackSmith: production deployment kit for self-hosted document chat"
+  authors:
+    - given-names: "Abolfazl"
+      family-names: "Rahimi"
+      alias: "Abolfazlrwm"
+  year: 2026
+  url: "https://github.com/Abolfazlrwm/stacksmith"
