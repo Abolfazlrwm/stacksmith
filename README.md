@@ -103,6 +103,10 @@ release closes every item from the v0.2 roadmap. What remains:
 - [ADR-0016: automated security scanning](docs/adr/0016-automated-security-scanning.md)
 - [ADR-0017: SBOM generation with syft](docs/adr/0017-sbom-generation-with-syft.md)
 - [ADR-0018: load testing with k6](docs/adr/0018-load-testing-with-k6.md)
+- [ADR-0019: multi-arch registry images](docs/adr/0019-multi-arch-registry-images.md)
+- [ADR-0020: cosign image signing](docs/adr/0020-cosign-and-terraform-and-chaos.md)
+- [ADR-0021: Terraform provisioning](docs/adr/0020-cosign-and-terraform-and-chaos.md)
+- [ADR-0022: chaos engineering drill](docs/adr/0020-cosign-and-terraform-and-chaos.md)
 
 ## Runbooks
 

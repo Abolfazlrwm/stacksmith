@@ -6,6 +6,30 @@ to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-11-30
+
+Supply chain, infrastructure as code, and chaos engineering.
+
+### Added
+
+- **Phase 9.1** — Multi-arch registry images. Multi-stage Dockerfile,
+  linux/amd64 + linux/arm64 builds via Buildx + QEMU, GHCR push with SHA
+  tags, build provenance attestation (SLSA L3). ADR-0019.
+- **Phase 9.2** — cosign keyless image signing. Signs the GHCR image
+  with GitHub OIDC identity, attaches SBOM as a cosign attestation,
+  verifies immediately. ADR-0020.
+- **Phase 9.3** — Terraform VPS provisioning. Hetzner Cloud VPS,
+  firewall, cloud-init that installs Docker and clones the repo. ADR-0021.
+- **Phase 9.4** — Chaos engineering drill. Kills the worker, verifies the
+  app survives, stops nginx, verifies the outage, restarts both. ADR-0022.
+
+### Proven in CI (20 workflows)
+
+- lint, smoke (stub + prod), deploy + rollback drill, canary failure,
+  restore drill, encryption drill, integrity drill, rotation drill,
+  logs drill, alerts drill, tracing drill, CodeQL, Trivy, SBOM, k6,
+  registry build (multi-arch), cosign sign, chaos drill
+
 ## [0.4.0] — 2026-11-25
 
 Production hardening: the kit now proves its supply chain is clean and
