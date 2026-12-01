@@ -1,10 +1,12 @@
 ---
 name: cosign-sign
 
+# Runs AFTER registry-build completes, so the image exists in GHCR.
 on:
-  push:
+  workflow_run:
+    workflows: ["registry-build"]
+    types: [completed]
     branches: [main]
-    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
