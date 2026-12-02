@@ -1,0 +1,135 @@
+---
+name: disaster-recovery-drill
+
+# Simulates a total VPS loss: the database is gone, the volumes are gone,
+# only an encrypted backup exists on an off-host destination. The drill:
+#   1. Brings up the stack and seeds data.
+#   2. Takes a backup and encrypts it with age.
+#   3. Tears down the ENTIRE stack (including volumes).
+#   4. Brings up a fresh stack (empty database).
+#   5. Restores from the encrypted backup.
+#   6. Verifies the data is back.
+#
+# This is the "house burned down" test. If this passes, the operator
+# knows they can recover from a total loss with nothing but an encrypted
+# backup file and the age private key.
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dr-drill:
+    name: total loss → encrypted backup → fresh stack → restore → verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install age
+        run: |
+          curl -sSL https://github.com/FiloSottile/age/releases/download/v1.2.1/age-v1.2.1-linux-amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin --strip-components=1 age/age age/age-keygen
+          age --version
+
+      - name: Write CI .env with age key
+        run: |
+          cp .env.example .env
+          sed -i 's/DJANGO_SECRET_KEY=.*/DJANGO_SECRET_KEY=ci-dr-drill-secret/' .env
+          sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci-dr-drill-pass/' .env
+          sed -i 's/DJANGO_ALLOWED_HOSTS=.*/DJANGO_ALLOWED_HOSTS=*/' .env
+          sed -i 's/NGINX_HTTP_PORT=.*/NGINX_HTTP_PORT=8092/' .env
+          # Generate age keypair for the drill.
+          age-keygen -o age.key 2>/dev/null
+          PUB="$(age-keygen -y age.key)"
+          sed -i "s|BACKUP_AGE_RECIPIENT=.*|BACKUP_AGE_RECIPIENT=$PUB|" .env
+          sed -i "s|BACKUP_AGE_IDENTITY=.*|BACKUP_AGE_IDENTITY=$(pwd)/age.key|" .env
+
+      - name: Phase 1 — Bring up the stack and seed critical data
+        run: |
+          docker compose -f docker-compose.prod.yml up -d --build --wait
+          # Seed a table with known data that we will verify after restore.
+          docker compose -f docker-compose.prod.yml exec -T postgres \
+            psql -U docubot -d docubot << 'SQL'
+            CREATE TABLE _dr_canary (id int, label text, created_at timestamptz DEFAULT now());
+            INSERT INTO _dr_canary VALUES (1, 'before-disaster');
+            INSERT INTO _dr_canary VALUES (2, 'critical-data');
+            SQL
+          echo "Data seeded"
+
+      - name: Phase 2 — Take a backup and encrypt it
+        run: |
+          bash scripts/backup-db.sh
+          bash scripts/encrypt-backups.sh
+          ls -la backups/*.age
+
+      - name: Phase 3 — SIMULATE TOTAL VPS LOSS
+        run: |
+          echo "[DR] destroying everything — containers, volumes, network"
+          docker compose -f docker-compose.prod.yml down --volumes --remove-orphans
+          # Remove the plaintext backup (only the encrypted .age file survives).
+          rm -f backups/docubot-*.sql.gz backups/docubot-*.sql.gz.sha256
+          echo "[DR] plaintext backups removed — only .age survives"
+          ls -la backups/
+
+      - name: Phase 4 — Provision a fresh stack (empty database)
+        run: |
+          echo "[DR] bringing up a fresh stack from scratch"
+          docker compose -f docker-compose.prod.yml up -d --build --wait
+          # Verify the database is empty (no _dr_canary table).
+          if docker compose -f docker-compose.prod.yml exec -T postgres \
+            psql -U docubot -d docubot -c "SELECT * FROM _dr_canary;" 2>/dev/null; then
+            echo "ERROR: data survived — the volume was not destroyed"
+            exit 1
+          fi
+          echo "[DR] confirmed: database is empty"
+
+      - name: Phase 5 — Restore from the encrypted backup
+        run: |
+          AGE_FILE="$(ls -1t backups/docubot-*.sql.gz.age | head -1)"
+          echo "[DR] restoring from encrypted backup: $AGE_FILE"
+          bash scripts/restore-db.sh "$AGE_FILE" --yes
+
+      - name: Phase 6 — Verify the data is back
+        run: |
+          echo "[DR] verifying restored data"
+          count=$(docker compose -f docker-compose.prod.yml exec -T postgres \
+            psql -U docubot -d docubot -tAc \
+            "SELECT count(*) FROM _dr_canary;")
+          echo "row count after DR restore: $count"
+          if [ "$count" != "2" ]; then
+            echo "DR VERIFICATION FAILED — expected 2 rows, got $count"
+            exit 1
+          fi
+          # Verify the actual data, not just the count.
+          label=$(docker compose -f docker-compose.prod.yml exec -T postgres \
+            psql -U docubot -d docubot -tAc \
+            "SELECT label FROM _dr_canary WHERE id = 2;")
+          if [ "$label" != "critical-data" ]; then
+            echo "DR VERIFICATION FAILED — data corruption"
+            exit 1
+          fi
+          echo "DR VERIFICATION PASSED — all data recovered from encrypted backup"
+
+      - name: Verify the app is serving after DR
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8092/health/live/ | grep -q '"alive"'; then
+              echo "app serving after disaster recovery"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "app not serving after DR"
+          exit 1
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.prod.yml logs --no-color || true
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down --volumes --remove-orphans

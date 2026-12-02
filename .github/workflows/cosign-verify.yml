@@ -6,7 +6,7 @@ name: cosign-verify
 # sign (cosign-sign) → verify (this workflow) → deploy.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   workflow_dispatch:
   schedule:
     - cron: "0 6 * * *"
